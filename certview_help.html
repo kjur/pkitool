@@ -8,14 +8,65 @@
 <title>certview ヘルプ</title>
 </head>
 <body>
-<div class="p-2">
+<div class="p-2 m-2">
 <h1>certview証明書ビューアー ヘルプ・解説</h1>
 <h3>はじめに</h3>
 <div>
-敬愛する<a href="https://understandingwebpki.com/">Peculiarの証明書ビューアー</a>や<a href="https://lapo.it/asn1js/">ASN.1 JavaScript decoder</a>のページを見てて、自分用にも作ってみたくなり<a href="https://github.com/kjur/jsrsasign">自作のjsrsasignライブラリ</a>を使って証明書ビューアーを作ってみました。機能追加や変更などはバンバン行いそうで、まだまだアルファバージョンです。よかったら遊んでやってください。
+敬愛する<a href="https://understandingwebpki.com/">Peculiarの証明書ビューアー</a>や<a href="https://lapo.it/asn1js/">ASN.1 JavaScript decoder</a>のページを見てて、自分用にも作ってみたくなり<a href="https://github.com/kjur/jsrsasign">自作のjsrsasignライブラリ</a>を使って<a href="certview.html">証明書ビューアー</a>を作ってみました。機能追加や変更などはバンバン行いそうで、まだまだアルファバージョンです。よかったら遊んでやってください。
 </div>
 
 <h3>マニュアル的な説明</h3>
+<h4>基本的な使い方</h4>
+<a href="certview.html">証明書ビューアー</a>を開けば使っていただけるわけですが、証明書の設定方法として今のところ3通りあります。
+<ol>
+<li>フォームのテキストエリアに以下のいずれかを入力して「設定」を押す:
+  <ol>
+  <li>PEM形式の証明書をテキストボックスに貼り付ける。</li>
+  <li>ドメイン名をテキストボックスに入力する。この場合、SSLMateのCTログAPIを使って得られたリストの最後の証明書が表示されます。サイトに設定されているものとは違う可能性もありご注意ください。</li>
+  </ol>
+　設定するとビューアーのURLのハッシュ(#以降)が更新されているはずです。このURLは表示されている証明書を「設定」ボタンなど押さずに永続的に表示するのに使えます。議論などに活用してください。
+</li>
+<li>
+ビューアーのURLのハッシュ(#以降)で指定する。ハッシュ以降には以下のデータが設定でき、それを永続的なURLとして使えます。
+  <ol>
+  <li>基本的にはBase64URLエンコーディングされた証明書を設定できます。</li>
+  <li>Base64でも大丈夫です。</li>
+  <li>そのうちPEMのテキストでも大丈夫にします。</li>
+  <li>そのうちドメイン名でも大丈夫にします。</li>
+  </ol>
+</li>
+</ol>
+
+<h3>応用編</h3>
+<ul>
+<li>右上
+  <ul>
+  <li><i class="bi-question-circle"></i> - このヘルプを表示します。</li>
+  <li><i class="bi-filetype-txt"></i> - 表示されている証明書をPEM形式でクリップボードにコピーします。</li>
+  <li><i class="bi-filetype-json"></i> - 表示されている証明書をjsrsasign用JSON形式でパーズしたテキストをクリップボードにコピーします。</li>
+  </ul>
+</li>
+<li>各フィールドのアイコン
+  <ul>
+  <li>有効期間の「<i class="bi-arrow-clockwise"></i>」 - 有効期間の表示形式を変更します。</li>
+  <li>公開鍵情報の「<i class="bi-clipboard-plus"></i>」 - 公開鍵をPKCS#8 PEM形式でクリップボードにコピーします。</li>
+  <li>公開鍵情報の「<i class="bi-clipboard-plus"></i>」 - 署名値の16進数テキストをクリップボードにコピーします。</li>
+  </ul>
+</li>
+</ul>
+
+<h3>今後近いうち</h3>
+<ul>
+<li>ファイルを開いて証明書を見れるようにしたい。</li>
+<li>QCStatementsなど未対応の拡張が結構あるので対応したい。</li>
+<li>有名なOIDはちゃんと文字列併記できるようにしたい。</li>
+</ul>
+
+<h3>表示サンプル(別ウィンドウ)</h3>
+<ul>
+<li><a target="_blank" href="https://kjur.github.io/pkitool/certview.html?#MIIEqDCCA5CgAwIBAgISBOrClKDmEDXYJU1aBPYaN8gCMA0GCSqGSIb3DQEBCwUAMDIxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MQswCQYDVQQDEwJSMzAeFw0yMzAyMDIwMDAwMjRaFw0yMzA1MDMwMDAwMjNaMBQxEjAQBgNVBAMTCWxlbmNyLm9yZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDifbPJGYiP_M-_H5rtinl-h4YuCU4L1wj_u9Pdpbu7Wi1M3zO5gHTJFe-7q-cYpAIdJ2myBGsQ5s1dkQz341GyjggKfMIICmzAOBgNVHQ8BAf8EBAMCB4AwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB_wQCMAAwHQYDVR0OBBYEFFt27GM1SYH4TvQs_J9Bgo23CQpgMB8GA1UdIwQYMBaAFBQusxe3WFbLrlAJQOYfr52LFMLGMFUGCCsGAQUFBwEBBEkwRzAhBggrBgEFBQcwAYYVaHR0cDovL3IzLm8ubGVuY3Iub3JnMCIGCCsGAQUFBzAChhZodHRwOi8vcjMuaS5sZW5jci5vcmcvMG8GA1UdEQRoMGaCCWxlbmNyLm9yZ4IPbGV0c2VuY3J5cHQuY29tgg9sZXRzZW5jcnlwdC5vcmeCDXd3dy5sZW5jci5vcmeCE3d3dy5sZXRzZW5jcnlwdC5jb22CE3d3dy5sZXRzZW5jcnlwdC5vcmcwTAYDVR0gBEUwQzAIBgZngQwBAgEwNwYLKwYBBAGC3xMBAQEwKDAmBggrBgEFBQcCARYaaHR0cDovL2Nwcy5sZXRzZW5jcnlwdC5vcmcwggEEBgorBgEEAdZ5AgQCBIH1BIHyAPAAdQC3Pvsk35xNunXyOcW6WPRsXfxCz3qfNcSeHQmBJe20mQAAAYYPo5aAAAAEAwBGMEQCICeBFCrhXXVwTexcWfqJ6NZsQLTWnjOInS0e4RQU9xQ2AiBpiNQQKphE3t23Vb-FyZR0fmIhUA2VBmzwnYCcFiyJWgB3AHoyjFTYty22IOo44FIe6YQWcDIThU070ivBOlejUutSAAABhg-jlpEAAAQDAEgwRgIhAJR1zuY1wQGsUV_ugVNy4JRH8n1EE_KusruYwh_-_nBnAiEAsPCmQtcFM0Uznfs73Gnv3vthRHBsQQv_AWUD0EtT7tAwDQYJKoZIhvcNAQELBQADggEBAHqJL8ERVCIpAE15J6rIdUt7W-qqE6CrtIQOiadDNaUGPT_LfvvppYgluoeSayDsCO99k8haS4ml5CLQNN6JdBBT6yTg-4j9T0EpfqV0jiCnMcQsLHbGmjCAswDQpJ8-OUo8J5HSVf6w15JFTqx-w614_YP5VeTcD8upE6GIBw_YZLKFwBYzsUn4fjq9D3NJyoSw6XkmEs79X07J0xpzTTRsl3SNfmoBjtr_5zDIj1NTFEhPHJlyjUe09V_rYfNRRTpITstViq1_j4ey54plGuzYSyVzHIS4TH9fvZgrQbm7SiIS4GkaHINaHDP8vclhsSsKPGw-GtAiEiZfnzZFfwk">www.letsencrypt.orgサイトの証明書(2023.02.22時点)</a></li>
+<li><a target="_blank" href="https://kjur.github.io/pkitool/certview.html?#MIIDeTCCAmGgAwIBAgIBATANBgkqhkiG9w0BAQsFADBAMQswCQYDVQQGEwJVUzEfMB0GA1UEChMWVGVzdCBDZXJ0aWZpY2F0ZXMgMjAxMTEQMA4GA1UEAxMHR29vZCBDQTAeFw0xMDAxMDEwODMwMDBaFw0zMDEyMzEwODMwMDBaMFMxCzAJBgNVBAYTAlVTMR8wHQYDVQQKExZUZXN0IENlcnRpZmljYXRlcyAyMDExMSMwIQYDVQQDExpWYWxpZCBFRSBDZXJ0aWZpY2F0ZSBUZXN0MTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANncdxgQEBhgQfvneBAP-IR3cO8tblU7EaaZUj9t9L2hl_o2Hm5EQhHIU_51hpteNxKIon3ZcQjUSTVxzkbPW9BZjmUf60I9yg7cTJDYVGnPXjiyIGDdg1Eu39vVWziRWi3PmjO0b5aQ5XYUYkNphBDPVEH5Neqe1FqXnV4QWb3g5MNZidfe8nmwh2sCwFmhKgCCFW9rEREAUzR0PfThzFZiouRl6COxgx1YUwiyMy2WvuV9M54QWidzU91dmOJLEVNYkY_qchHsu5TyDQ9QrfIWtRoAJDHlFb0XBpCqJLGs3QxSHvCLaqu49-3fY7TOlGi_XpbQRJbx-PR6Ogp5FVMCAwEAAaNrMGkwHwYDVR0jBBgwFoAUWAGEJBu8K1KUSj2lEHIUUfWvOskwHQYDVR0OBBYEFKg8CZ1n9thHuqLQ_BhyVohAbZWVMA4GA1UdDwEB_wQEAwIE8DAXBgNVHSAEEDAOMAwGCmCGSAFlAwIBMAEwDQYJKoZIhvcNAQELBQADggEBAB5a2Q-vYqW5Ury87AxhiBMBqgoPDUejnqmyFxv4o9ks0o04vjuyz9QxiM_OafSOx7lwBVHABofGlbT2avoxni3EF7Pt5XoZYRhujNHkDtqbbWyNBpDuLNF5WNiEzZtB0xji_pHGXwAnFGV7Evovvai_NI4tzxdMWFswDy5pZkUmJiGY0_OQrimHWk7Gvegofg-glOb_XLVcT92KYVkOBdL_xWnA04lK0cLlyPTICMP9KiNPhABcLEQtg4rCPSLHPGDyinjjG0Zl2pmP-GPB1HqgcKZ6pxCbnax_vhTwRCOHWKwQFejzoL8eJcs2qwJpWq7_wG6wQ54Inhk8pzBujcI">NIST PKITSのValid EE Certificate Test1証明書</a></li>
+</ul>
 
 </div>
 </body>
