@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+<title>certview(jsrsasign)</title>
+</head>
+<body>
+<nav class="navbar bg-dark">
+  <div class="container-fluid text-light">
+    <div><i class="bi-card-checklist"></i> <span>証明書ビューアー(α1版)</span></div>
+    <div>
+      <i id="btnCopyPEM" class="bi-filetype-txt"></i>
+      <i id="btnCopyJSON" class="bi-filetype-json"></i>
+      <a href="certview_help.html" class="link-info"><i class="bi-question-circle"></i></a>
+    </div>
+  </div>
+</nav>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsrsasign@10.6.1/lib/jsrsasign-all-min.min.js"></script>
+<div class="p-2">
+<form>
+<div class="mb-2">
+<label for="cert1" class="form-label">証明書</label>
+<textarea class="form-control" id="certdata1" rows="3"></textarea>
+</div>
+<button id="btn1" type="submit" class="btn btn-primary">設定</button>
+<button id="btnReset" type="submit" class="btn">リセット</button>
+</form>
+</div>
+<div class="p-2">
+<table class="table table-striped table-hover table-sm">
+<thead>
+<tr class="table-dark"><th colspan="2">基本領域＋署名値</th></tr>
+<tr><th class="white-space: nowrap;">領域名</th><th>値</th></tr>
+</thead>
+<tbody>
+<tr><td>シリアル</td><td id="serial1"></td></tr>
+<tr><td>発行者名</td><td id="issuer1"></td></tr>
+<tr><td>有効期間<i id="chtime1" class="bi-arrow-clockwise"></i></td><td id="validity1"></td></tr>
+<tr><td>主体者名</td><td id="subject1"></td></tr>
+<tr><td class="text-nowrap">公開鍵情報 <i id="btnCopyPubPEM" class="bi-clipboard-plus"></i></td><td><span id="pubkey1" class="d-inline-block text-truncate" style="max-width: 500px"></span></td></tr>
+<tr><td>署名値 <i id="btnCopySigHex" class="bi-clipboard-plus"></i></td><td><span id="sig1" class="d-inline-block text-truncate" style="max-width: 500px"></span></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="p-2">
+<table id="tableext1" class="table table-striped table-hover table-sm">
+<thead>
+<tr class="table-dark"><th colspan="3">拡張領域</th></tr>
+<tr class="vertical-align: middle;"><th class="text-nowrap">重要</th><th class="white-space: nowrap;">拡張</th><th>値</th></tr>
+</thead>
+<tbody id="tableext1body">
+</tbody>
+</table>
+</div>
+
+<script>
+let b64uCert = null;
+let pCert = null;
+let timeType = 0;
+
+function _utctogen(s) {
+    if (s.match(/^[0-9]{12}Z$/) || s.match(/^[0-9]{12}[.][0-9]*Z$/)) {
+	if (s.match(/^[0-4]/)) {
+	    return "20" + s;
+	} else {
+	    return "19" + s;
+	}
+    }
+    return s;
+}
+
+function _setTextAreaCert() {
+    let certdata = document.getElementById("certdata1").value;
+    if (certdata.match(/-----BEGIN CERTIFICATE/)) {
+	let certb64u = hextob64u(pemtohex(certdata))
+	window.location.hash = "#" + certb64u;
+	let x = new X509(certdata);
+	pCert = x.getParam();
+	_setCert();
+    } else if (certdata.match(/^\s*([a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.)+[a-zA-Z]{2,}\s*$/)) {
+	certdata = certdata.replace(/^\s+/, '');
+	certdata = certdata.replace(/\s+$/, '');
+	let domain = certdata;
+	let url = `https://api.certspotter.com/v1/issuances?domain=${domain}&expand=cert_der`;
+	fetch(url)
+	    .then((response) => response.json())
+	    .then((data) => {
+		if (data.length > 0) {
+		    try {
+			let b64Cert = data.slice(-1)[0].cert_der;
+			let hexCert = b64tohex(b64Cert);
+			b64uCert = hextob64u(hexCert);
+			let pemCert = hextopem(hexCert, "CERTIFICATE");
+			let xCert = new X509(pemCert);
+			pCert = xCert.getParam();
+			_setCert();
+		    } catch(ex) {alert(ex)};
+		}
+	    });
+    }
+}
+
+function _setCert() {
+    _removeAllExtensions();
+    _setBasicField(pCert);
+    _setExtensions(pCert);
+}
+
+function _elm(id) {
+    return document.getElementById(id);
+}
+
+function _setBasicField(pCert) {
+    try {
+	_elm("serial1").innerText = pCert.serial.hex;
+	_elm("issuer1").innerText = KJUR.asn1.x509.X500Name.compatToLDAP(pCert.issuer.str);
+	_elm("subject1").innerText = KJUR.asn1.x509.X500Name.compatToLDAP(pCert.subject.str);
+	_elm("pubkey1").innerText = _getPublicKeyInfoStr();
+	_elm("sig1").innerText = _getSig();
+	_setValidity();
+	
+    } catch(ex) { alert(ex); };
+}
+
+function _pemtob64(s) {
+    s = s.replace(/^\s*-----.+-----/, '');
+    s = s.replace(/-----.+-----\s*$/, '');
+    s = s.replace(/\s+/g, '');
+    return s;
+}
+
+function _getPublicKeyInfoStr() {
+    try {
+	let value = "";
+	let pub = KEYUTIL.getKey(pCert.sbjpubkey);
+	if (pub instanceof RSAKey) {
+	    return `RSA ${pub.n.bitLength()}bit ${_pemtob64(pCert.sbjpubkey)}`;
+	} else if (pub instanceof KJUR.crypto.ECDSA) {
+	    return `EC ${pub.curveName} ${_pemtob64(pCert.sbjpubkey)}`;
+	} else if (pub instanceof KJUR.crypto.DSA) {
+	    return `DSA`;
+	} else {
+	    return "未サポート";
+	}
+    } catch(ex) {
+	return '';
+    }
+}
+
+function _getSig() {
+    try {
+	return `${pCert.sigalg} ${pCert.sighex}`;
+    } catch(ex) {
+	return '';
+    }
+}
+
+function _getExtInfo(pCert) {
+    let aExt = pCert.ext;
+    let aResult = [];
+    
+    ["basicConstraints",
+     "keyUsage",
+     "authorityKeyIdentifier",
+     "subjectKeyIdentifier",
+     "certificatePolicies",
+     "extKeyUsage",
+     "subjectAltName",
+     "authorityInfoAccess",
+     "cRLDistributionPoints"].map((extname) => {
+	 let pResult = _getResultItem(aExt, extname);
+	 if (pResult != null) aResult.push(pResult);
+     });
+     
+    return aResult;
+}
+
+function _getResultItem(aExt, extname) {
+    let idx = aExt.findIndex((pExt) => pExt.extname == extname);
+    if (idx == -1) return null;
+    let pExt = aExt[idx];
+    let name = extname;
+    let criticalFlag = (pExt.critical == true) ? true : false;
+    let value = null;
+
+    if (name == "basicConstraints") {
+	name = "基本制約";
+	value = (pExt.cA == true) ? "CAフラグ=TRUE" : "CAフラグ=FALSE";
+	if (pExt.pathLen != undefined) value += " パス長制約=" . pExt.pathLen;
+    }
+
+    if (name == "keyUsage") {
+	name = "鍵使用目的";
+	try { value = pExt.names.join(", "); } catch(ex) {};
+    }
+    
+    if (name == "authorityKeyIdentifier") {
+	name = "発行者鍵ID";
+	try {value = pExt.kid.hex;} catch(ex) {};
+    }
+
+    if (name == "subjectKeyIdentifier") {
+	name = "主体者鍵ID";
+	try {value = pExt.kid.hex;} catch(ex) {};
+    }
+
+    if (name == "extKeyUsage") {
+	name = "拡張鍵使用目的";
+	try {value = pExt.array.join("<br>");} catch(ex) {}; 
+    }
+
+    if (name == "subjectAltName") {
+	name = "主体者別名";
+	try {
+	    let aItem = pExt.array.map((elem) => {
+		if (elem.dns != undefined) return elem.dns;
+		return null;
+	    });
+	    aItem = aItem.filter((elem) => elem != null);
+	    value = aItem.join("<br>");
+	} catch(ex) {alert(ex)};
+    }
+    
+    if (name == "authorityInfoAccess") {
+	name = "機関情報アクセス";
+	let aValue = [];
+	pExt.array.map((elem) => {
+	    if (elem.caissuer != undefined) aValue.push(`caIssuer: ${elem.caissuer}`);
+	    if (elem.ocsp != undefined) aValue.push(`OCSP: ${elem.ocsp}`);
+	});
+	if (aValue.length > 0) value = aValue.join("<br/>\n");
+    }
+
+    if (name == "cRLDistributionPoints") {
+	name = "CRL配布点";
+	try {
+	    value = pExt.array[0]["dpname"]["full"][0]["uri"];
+	} catch(ex) {};
+    }
+
+    if (name == "certificatePolicies") {
+	name = "証明書ポリシー";
+	aValue = [];
+	pExt.array.map((elem, polidx) => {
+	    aValue.push(`[${polidx}] ${elem.policyoid}`);
+	    let aPQ = (elem.array != undefined) ? elem.array : [];
+	    aPQ.map((pPQ) => {
+		if (pPQ.cps != undefined) aValue.push(`　　CPS: ${pPQ.cps}`);
+		if (pPQ.unotice != undefined) {
+		    try {
+			let pExpText = pPQ.unotice.exptext;
+			aValue.push(`　　ユーザー通知: ${pExpText.str}`);
+		    } catch(ex) {alert(ex);};
+		}
+	    });
+	});
+	value = aValue.join("<br>");
+    }
+
+    let pResult = { name: name, idx: idx, critical: criticalFlag };
+    if (value != null) pResult.value = value;
+    return pResult;
+}
+
+function _setExtensions(pCert) {
+    let aExtInfo = _getExtInfo(pCert);
+    let table = _elm("tableext1");
+    for (let i = 0; i < aExtInfo.length; i++) {
+	let pExtInfo = aExtInfo[i];
+	let row = table.insertRow();
+	let cell1 = row.insertCell();
+	cell1.innerHTML = (pExtInfo.critical) ? '<i class="bi-patch-exclamation"></i>' : '';
+	let cell2 = row.insertCell();
+	_setCellText(cell2, pExtInfo.name);
+	let cell3 = row.insertCell();
+	if (pExtInfo.value != undefined) cell3.innerHTML = pExtInfo.value;
+    }
+}
+
+function _removeAllExtensions() {
+    let table = _elm("tableext1");
+    while (table.rows.length > 2) table.deleteRow(-1);
+}
+
+function _setCellText(cell, s) {
+    let newText = document.createTextNode(s);
+    cell.appendChild(newText);
+}
+
+function _getValidityStr(pCert) {
+    return pCert.notbefore + "〜" + pCert.notafter;
+}
+
+function _reset() {
+    window.location.hash = '';
+    _elm("certdata1").value = '';
+    _elm("serial1").innerText = '';
+    _elm("issuer1").innerText = '';
+    _elm("validity1").innerText = '';
+    _elm("subject1").innerText = '';
+    _elm("pubkey1").innerText = '';
+    _elm("sig1").innerText = '';
+    _removeAllExtensions();
+
+}
+
+function _setValidity() {
+    if (pCert == null) return;
+    let notbefore = _utctogen(pCert.notbefore);
+    let notafter = _utctogen(pCert.notafter);
+    let value = "";
+    if (timeType % 3 == 0) {
+	notbefore = notbefore.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日");
+	notafter = notafter.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日");
+	value = `${notbefore}〜${notafter} UTC`;
+    } else if (timeType % 3 == 1) {
+	notbefore = notbefore.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日 $4:$5:$6");
+	notafter = notafter.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日 $4:$5:$6");
+	value = `${notbefore}〜${notafter} UTC`;
+    } else {
+	value = `${notbefore}〜${notafter}`;
+    }
+    _elm("validity1").innerText = value;
+    timeType++;
+}
+
+_elm("btn1").onclick = function() {_setTextAreaCert();};
+_elm("btnReset").onclick = function() {_reset();};
+_elm("chtime1").onclick = function() { _setValidity(); };
+_elm("btnCopyPubPEM").onclick = function() {
+    let pubpem = pCert.sbjpubkey;
+    //alert(pubpem);
+    navigator.clipboard.writeText(pubpem).then(() => {
+    }, () => {
+	alert("copy failed");
+    });
+};
+_elm("btnCopyPEM").onclick = function() {
+    let pemCert = hextopem(b64utohex(b64uCert), "CERTIFICATE");
+    navigator.clipboard.writeText(pemCert).then(() => {
+    }, () => {
+	alert("copy failed");
+    });
+};
+_elm("btnCopyJSON").onclick = function() {
+    let sJSON = JSON.stringify(pCert, null, 2);
+    navigator.clipboard.writeText(sJSON).then(() => {
+    }, () => {
+	alert("copy failed");
+    });
+};
+
+if (window.location.hash != '') {
+    let hashValue = window.location.hash.slice(1);
+    if (KJUR.lang.String.isBase64URL(hashValue)) {
+	try {
+	    b64uCert = hashValue;
+	    let pemCert = hextopem(b64utohex(b64uCert), "CERTIFICATE");
+	    let xCert = new X509(pemCert);
+	    pCert = xCert.getParam();
+	    _setCert();
+	} catch(ex) {};
+    } else if (KJUR.lang.String.isBase64(hashValue)) {
+	try {
+	    let b64Cert = hashValue;
+	    let hexCert = b64tohex(b64Cert);
+	    b64uCert = hextob64u(hexCert);
+	    let pemCert = hextopem(hexCert, "CERTIFICATE");
+	    let xCert = new X509(pemCert);
+	    pCert = xCert.getParam();
+	    _setCert();
+	} catch(ex) {};
+    }
+}
+</script>
+<div align="center">&copy; 2023 Kenji Urushima All Rights Reserved</div>
+</body>
+</html>
