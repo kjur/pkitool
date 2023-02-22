@@ -202,17 +202,17 @@ function _getResultItem(aExt, extname) {
     
     if (name == "authorityKeyIdentifier") {
 	name = "発行者鍵ID";
-	try {value = pExt.kid.hex;} catch(ex) {};
+	try {value = _h(pExt.kid.hex);} catch(ex) {};
     }
 
     if (name == "subjectKeyIdentifier") {
 	name = "主体者鍵ID";
-	try {value = pExt.kid.hex;} catch(ex) {};
+	try {value = _h(pExt.kid.hex);} catch(ex) {};
     }
 
     if (name == "extKeyUsage") {
 	name = "拡張鍵使用目的";
-	try {value = pExt.array.join("<br>");} catch(ex) {}; 
+	try {value = pExt.array.map((elem) => _h(elem)).join("<br>");} catch(ex) {}; 
     }
 
     if (name == "issuerAltName") {
@@ -228,6 +228,7 @@ function _getResultItem(aExt, extname) {
 		return null;
 	    });
 	    aValue = aValue.filter((elem) => elem != null);
+	    aValue = aValue.map((elem) => _h(elem));
 	    value = aValue.join("<br>");
 	}
     }
@@ -248,6 +249,7 @@ function _getResultItem(aExt, extname) {
 		return null;
 	    });
 	    aValue = aValue.filter((elem) => elem != null);
+	    aValue = aValue.map((elem) => _h(elem));
 	    value = aValue.join("<br>");
 	}
     }
@@ -256,8 +258,8 @@ function _getResultItem(aExt, extname) {
 	name = "機関情報アクセス";
 	let aValue = [];
 	pExt.array.map((elem) => {
-	    if (elem.caissuer != undefined) aValue.push(`caIssuer: ${elem.caissuer}`);
-	    if (elem.ocsp != undefined) aValue.push(`OCSP: ${elem.ocsp}`);
+	    if (elem.caissuer != undefined) aValue.push(`caIssuer: ${_h(elem.caissuer)}`);
+	    if (elem.ocsp != undefined) aValue.push(`OCSP: ${_h(elem.ocsp)}`);
 	});
 	if (aValue.length > 0) value = aValue.join("<br/>\n");
     }
@@ -290,11 +292,11 @@ function _getResultItem(aExt, extname) {
 	    aValue.push(`[${polidx}] ${elem.policyoid}`);
 	    let aPQ = (elem.array != undefined) ? elem.array : [];
 	    aPQ.map((pPQ) => {
-		if (pPQ.cps != undefined) aValue.push(`　　CPS: ${pPQ.cps}`);
+		if (pPQ.cps != undefined) aValue.push(`　　CPS: ${_h(pPQ.cps)}`);
 		if (pPQ.unotice != undefined) {
 		    try {
 			let pExpText = pPQ.unotice.exptext;
-			aValue.push(`　　ユーザー通知: ${pExpText.str}`);
+			aValue.push(`　　ユーザー通知: ${_h(pExpText.str)}`);
 		    } catch(ex) {alert(ex);};
 		}
 	    });
@@ -305,6 +307,13 @@ function _getResultItem(aExt, extname) {
     let pResult = { name: name, idx: idx, critical: criticalFlag };
     if (value != null) pResult.value = value;
     return pResult;
+}
+
+function _h(s) {
+    return String(s).replace(/&/g, "&amp;")
+	.replace(/"/g, "&quot;")
+	.replace(/</g, "&lt;")
+	.replace(/>/g, "&gt;");
 }
 
 function _jpkiDateOfBirth(s) {
