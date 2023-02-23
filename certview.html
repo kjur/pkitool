@@ -270,12 +270,12 @@ function _getResultItem(aExt, extname) {
 	    let aValue = pExt.array.map((dp) => {
 		try {
 		    if (dp.dpname.full[0].uri != undefined) {
-			return dp.dpname.full[0].uri;
+			return _h(dp.dpname.full[0].uri);
 		    }
 		} catch(ex) {}
 		try {
 		    if (dp.dpname.full[0].dn.str != undefined) {
-			return dp.dpname.full[0].dn.str;
+			return _h(dp.dpname.full[0].dn.str);
 		    }
 		} catch(ex) {}
 		return null;
