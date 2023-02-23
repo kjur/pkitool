@@ -219,13 +219,17 @@ function _getResultItem(aExt, extname) {
 	name = "発行者別名";
 	if (pExt.array != undefined) {
 	    let aValue = pExt.array.map((elem) => {
-		try {
-		    if (elem.dns != undefined) return elem.dns;
-		} catch(ex) {};
-		try {
-		    if (elem.dn.str != undefined) return elem.dn.str;
-		} catch(ex) {};
-		return null;
+		if (elem.dns != undefined) {
+		    return elem.dns;
+		} else if (elem.dn != undefined) {
+		    return elem.dn.str;
+		} else if (elem.ip != undefined) {
+		    return elem.ip;
+		} else if (elem.other != undefined) {
+		    return _otherNameToStr(elem.other);
+		} else {
+		    return null;
+		}
 	    });
 	    aValue = aValue.filter((elem) => elem != null);
 	    aValue = aValue.map((elem) => _h(elem));
@@ -237,16 +241,17 @@ function _getResultItem(aExt, extname) {
 	name = "主体者別名";
 	if (pExt.array != undefined) {
 	    let aValue = pExt.array.map((elem) => {
-		try {
-		    if (elem.dns != undefined) return elem.dns;
-		} catch(ex) {};
-		try {
-		    if (elem.dn.str != undefined) return elem.dn.str;
-		} catch(ex) {};
-		try {
-		    if (elem.other != undefined) return _otherNameToStr(elem.other);
-		} catch(ex) {};
-		return null;
+		if (elem.dns != undefined) {
+		    return elem.dns;
+		} else if (elem.dn != undefined) {
+		    return elem.dn.str;
+		} else if (elem.ip != undefined) {
+		    return elem.ip;
+		} else if (elem.other != undefined) {
+		    return _otherNameToStr(elem.other);
+		} else {
+		    return null;
+		}
 	    });
 	    aValue = aValue.filter((elem) => elem != null);
 	    aValue = aValue.map((elem) => _h(elem));
