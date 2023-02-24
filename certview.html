@@ -224,6 +224,8 @@ function _getResultItem(aExt, extname) {
 		    return elem.dns;
 		} else if (elem.dn != undefined) {
 		    return elem.dn.str;
+		} else if (elem.rfc822 != undefined) {
+		    return elem.rfc822;
 		} else if (elem.ip != undefined) {
 		    return elem.ip;
 		} else if (elem.other != undefined) {
@@ -246,6 +248,8 @@ function _getResultItem(aExt, extname) {
 		    return elem.dns;
 		} else if (elem.dn != undefined) {
 		    return elem.dn.str;
+		} else if (elem.rfc822 != undefined) {
+		    return elem.rfc822;
 		} else if (elem.ip != undefined) {
 		    return elem.ip;
 		} else if (elem.other != undefined) {
