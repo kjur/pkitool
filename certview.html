@@ -27,7 +27,8 @@
 <textarea class="form-control" id="certdata1" rows="3"></textarea>
 </div>
 <button id="btn1" type="submit" class="btn btn-primary">設定</button>
-<button id="btnReset" type="submit" class="btn">リセット</button>
+<button id="btnReset" type="submit" class="btn">リセット</button><br/>
+<input class="form-control form-control-sm m-2" id="inputfile1" type="file">
 </form>
 </div>
 <div class="p-2">
@@ -372,6 +373,8 @@ function _getValidityStr(pCert) {
 function _reset() {
     window.location.hash = '';
     _elm("certdata1").value = '';
+    _elm("inputfile1").value = '';
+
     _elm("serial1").innerText = '';
     _elm("issuer1").innerText = '';
     _elm("validity1").innerText = '';
@@ -452,6 +455,36 @@ if (window.location.hash != '') {
 	} catch(ex) {};
     }
 }
+// --- ファイル入力
+let fileReader = new FileReader();
+_elm("inputfile1").onchange = () => {
+    fileReader.readAsBinaryString(_elm("inputfile1").files[0]);
+};
+fileReader.onload = () => {
+    //console.log(fileReader.result);
+    let fileData = fileReader.result;
+    if (fileData.match(/-----BEGIN/)) {
+	try {
+	    let xCert = new X509(fileData);
+	    pCert = xCert.getParam();
+	    b64uCert = hextob64u(pemtohex(fileData));
+	    _setCert();
+	    window.location.hash = "#" + b64uCert;
+	    _elm("certdata1").value = fileData;
+	} catch(ex) { console.log(ex); };
+    } else {
+	try {
+	    let hexCert = rstrtohex(fileData);
+	    let pemCert = hextopem(hexCert, "CERTIFICATE");
+	    let xCert = new X509(pemCert);
+	    pCert = xCert.getParam();
+	    b64uCert = hextob64u(hexCert);
+	    _setCert();
+	    window.location.hash = "#" + b64uCert;
+	    _elm("certdata1").value = pemCert;
+	} catch(ex) { console.log(ex); };
+    }
+};
 </script>
 <div align="center">&copy; 2023 Kenji Urushima All Rights Reserved</div>
 </body>
