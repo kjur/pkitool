@@ -75,6 +75,13 @@ function _utctogen(s) {
     return s;
 }
 
+function _setCert() {
+    timeType = 0;
+    _removeAllExtensions();
+    _setBasicField(pCert);
+    _setExtensions(pCert);
+}
+
 function _setTextAreaCert() {
     let certdata = document.getElementById("certdata1").value;
     if (certdata.match(/-----BEGIN CERTIFICATE/)) {
@@ -104,12 +111,6 @@ function _setTextAreaCert() {
 		}
 	    });
     }
-}
-
-function _setCert() {
-    _removeAllExtensions();
-    _setBasicField(pCert);
-    _setExtensions(pCert);
 }
 
 function _elm(id) {
@@ -467,7 +468,7 @@ _elm("inputfile1").onchange = () => {
 fileReader.onload = () => {
     //console.log(fileReader.result);
     let fileData = fileReader.result;
-    if (fileData.match(/-----BEGIN/)) {
+    if (fileData.match(/-----BEGIN CERTIFICATE/)) {
 	try {
 	    let xCert = new X509(fileData);
 	    pCert = xCert.getParam();
