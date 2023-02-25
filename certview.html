@@ -8,18 +8,28 @@
 <title>certview</title>
 </head>
 <body>
-<nav class="navbar bg-dark">
-  <div class="container-fluid text-light">
-    <div><i class="bi-card-checklist"></i> <span>証明書ビューアー(α1版)</span></div>
-    <div>
-      <i id="btnCopyPEM" class="bi-filetype-txt"></i>
-      <i id="btnCopyJSON" class="bi-filetype-json"></i>
-      <a href="certview_help.html" class="link-info"><i class="bi-question-circle"></i></a>
-    </div>
+<main>
+
+<nav class="navbar navbar-expand navbar-dark bg-dark" aria-label="Second navbar example">
+  <div class="container-fluid">
+        <ul class="navbar-nav me-auto mb-2">
+          <li class="nav-item">
+            <a class="nav-link" href=""><i class="bi-card-checklist"></i> <span>証明書ビューアー(α1版)</span></a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">：</a>
+            <ul class="dropdown-menu" aria-labelledby="dropdown01">
+              <li><a class="dropdown-item" href="javascript:_copyCertPEM()">表示中の証明書をPEM形式でコピーする</a></li>
+              <li><a class="dropdown-item" href="javascript:_copyCertJSON()">表示中の証明書をJSON形式でコピーする</a></li>
+              <li><a class="dropdown-item" href="javascript:_openPeculiar()">Peculiarの証明書ビューアーで開く</a></li>
+              <li><a class="dropdown-item" href="javascript:_openASN1()">lapo.itのJavaScript ASN.1 Decoderで開く</a></li>
+              <li><a class="dropdown-item" href="certview_help.html" target="_blank">ヘルプ・説明</a></li>
+            </ul>
+          </li>
+        </ul>
   </div>
 </nav>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsrsasign@10.6.1/lib/jsrsasign-all-min.min.js"></script>
+
 <div class="p-2">
 <form>
 <div class="mb-2">
@@ -58,7 +68,10 @@
 </tbody>
 </table>
 </div>
+</main>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsrsasign@10.6.1/lib/jsrsasign-all-min.min.js"></script>
 <script>
 let b64uCert = null;
 let pCert = null;
@@ -410,6 +423,39 @@ function _setValidity() {
     timeType++;
 }
 
+function _copyCertPEM() {
+    if (b64uCert == null || b64uCert == '') return;
+    let pemCert = hextopem(b64utohex(b64uCert), "CERTIFICATE");
+    navigator.clipboard.writeText(pemCert).then(() => {
+    }, () => {
+	alert("copy failed");
+    });
+}
+
+function _copyCertJSON() {
+    if (b64uCert == null || b64uCert == '') return;
+    let sJSON = JSON.stringify(pCert, null, 2);
+    navigator.clipboard.writeText(sJSON).then(() => {
+    }, () => {
+	alert("copy failed");
+    });
+}
+
+function _openPeculiar() {
+    if (b64uCert == null) return;
+    let value = hextob64(b64utohex(b64uCert));
+    // encodeURI
+    value = value.replace(/\+/g, "%2B");
+    value = value.replace(/\//g, "%2F");
+    value = value.replace(/=/g, "%3D");
+    window.open(`https://understandingwebpki.com/?cert=${value}`, "_blank");
+}
+
+function _openASN1() {
+    if (b64uCert == null) return;
+    window.open(`https://lapo.it/asn1js/#${b64uCert}`, "_blank");
+}
+
 _elm("btn1").onclick = function() {_setTextAreaCert();};
 _elm("btnReset").onclick = function() {_reset();};
 _elm("chtime1").onclick = function() { _setValidity(); };
@@ -421,20 +467,7 @@ _elm("btnCopyPubPEM").onclick = function() {
 	alert("copy failed");
     });
 };
-_elm("btnCopyPEM").onclick = function() {
-    let pemCert = hextopem(b64utohex(b64uCert), "CERTIFICATE");
-    navigator.clipboard.writeText(pemCert).then(() => {
-    }, () => {
-	alert("copy failed");
-    });
-};
-_elm("btnCopyJSON").onclick = function() {
-    let sJSON = JSON.stringify(pCert, null, 2);
-    navigator.clipboard.writeText(sJSON).then(() => {
-    }, () => {
-	alert("copy failed");
-    });
-};
+
 
 if (window.location.hash != '') {
     let hashValue = window.location.hash.slice(1);
@@ -490,6 +523,7 @@ fileReader.onload = () => {
 	} catch(ex) { console.log(ex); };
     }
 };
+
 </script>
 <div align="center">&copy; 2023 Kenji Urushima All Rights Reserved</div>
 </body>
