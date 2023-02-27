@@ -189,8 +189,10 @@ function _getExtInfo(pCert) {
      "subjectAltName",
      "authorityInfoAccess",
      "cRLDistributionPoints"].map((extname) => {
-	 let pResult = _getResultItem(aExt, extname);
-	 if (pResult != null) aResult.push(pResult);
+	 try {
+	     let pResult = _getResultItem(aExt, extname);
+	     if (pResult != null) aResult.push(pResult);
+	 } catch(exZ) {};
      });
      
     return aResult;
@@ -207,7 +209,7 @@ function _getResultItem(aExt, extname) {
     if (name == "basicConstraints") {
 	name = "基本制約";
 	value = (pExt.cA == true) ? "CAフラグ=TRUE" : "CAフラグ=FALSE";
-	if (pExt.pathLen != undefined) value += " パス長制約=" . pExt.pathLen;
+	if (pExt.pathLen != undefined) value += ` パス長制約=${pExt.pathLen}`;
     }
 
     if (name == "keyUsage") {
