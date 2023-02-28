@@ -410,14 +410,23 @@ function _setValidity() {
     let notbefore = _utctogen(pCert.notbefore);
     let notafter = _utctogen(pCert.notafter);
     let value = "";
-    if (timeType % 3 == 0) {
+    if (timeType % 4 == 0) {
 	notbefore = notbefore.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日");
 	notafter = notafter.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日");
 	value = `${notbefore}〜${notafter} UTC`;
-    } else if (timeType % 3 == 1) {
+    } else if (timeType % 4 == 1) {
 	notbefore = notbefore.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日 $4:$5:$6");
 	notafter = notafter.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1年$2月$3日 $4:$5:$6");
 	value = `${notbefore}〜${notafter} UTC`;
+    } else if (timeType % 4 == 2) { // JST表示
+	let pTZ = {timeZone: "Asia/Tokyo"};
+	let re = new RegExp(/^([0-9]{4})\/([0-9]{1,2})\/([0-9]{1,2}) ([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})$/);
+	// toLocaleString(ja-JP)の戻値は "2023/2/23 5:13:9" 形式
+	notbefore = zulutodate(notbefore).toLocaleString("ja-JP", pTZ);
+	notafter = zulutodate(notafter).toLocaleString("ja-JP", pTZ);
+	notbefore = notbefore.replace(re, "$1年$2月$3日 $4:$5:$6");
+	notafter = notafter.replace(re, "$1年$2月$3日 $4:$5:$6");
+	value = `${notbefore}〜${notafter} 日本時間`;
     } else {
 	value = `${notbefore}〜${notafter}`;
     }
