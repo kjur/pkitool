@@ -175,20 +175,24 @@ function _getSig() {
     }
 }
 
+let SUPPORTED_EXTENSIONS = [
+    "basicConstraints",
+    "keyUsage",
+    "authorityKeyIdentifier",
+    "subjectKeyIdentifier",
+    "certificatePolicies",
+    "extKeyUsage",
+    "issuerAltName",
+    "subjectAltName",
+    "authorityInfoAccess",
+    "cRLDistributionPoints"
+];
+
 function _getExtInfo(pCert) {
     let aExt = pCert.ext;
     let aResult = [];
-    
-    ["basicConstraints",
-     "keyUsage",
-     "authorityKeyIdentifier",
-     "subjectKeyIdentifier",
-     "certificatePolicies",
-     "extKeyUsage",
-     "issuerAltName",
-     "subjectAltName",
-     "authorityInfoAccess",
-     "cRLDistributionPoints"].map((extname) => {
+
+    SUPPORTED_EXTENSIONS.map((extname) => {
 	 try {
 	     let pResult = _getResultItem(aExt, extname);
 	     if (pResult != null) aResult.push(pResult);
