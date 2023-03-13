@@ -19,10 +19,6 @@
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">：</a>
             <ul class="dropdown-menu" aria-labelledby="dropdown01">
-              <li><a class="dropdown-item" href="javascript:_copyCertPEM()">表示中の証明書をPEM形式でコピーする</a></li>
-              <li><a class="dropdown-item" href="javascript:_copyCertJSON()">表示中の証明書をJSON形式でコピーする</a></li>
-              <li><a class="dropdown-item" href="javascript:_openPeculiar()">Peculiarの証明書ビューアーで開く</a></li>
-              <li><a class="dropdown-item" href="javascript:_openASN1()">lapo.itのJavaScript ASN.1 Decoderで開く</a></li>
               <li><a class="dropdown-item" href="certview_help.html" target="_blank">ヘルプ・説明</a></li>
             </ul>
           </li>
@@ -39,6 +35,10 @@
 <button id="btn1" type="submit" class="btn btn-primary">設定</button>
 <button id="btnReset" type="submit" class="btn">リセット</button><br/>
 <input class="form-control form-control-sm m-2" id="inputfile1" type="file">
+<button id="btnCopyPEM" type="submit" class="btn btn-dark">PEMコピー</button>
+<button id="btnCopyJSON" type="submit" class="btn btn-dark">JSONコピー</button>
+<button id="btnOpenPeculiar" type="submit" class="btn btn-dark">Peculiarビューアーで開く</button>
+<button id="btnOpenLapo" type="submit" class="btn btn-dark">lapo ASN.1ビューアーで開く</button>
 </form>
 </div>
 <div class="p-2">
@@ -71,8 +71,15 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsrsasign@10.6.1/lib/jsrsasign-all-min.min.js"></script>
-<script>
+<script type="module">
+import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.7.0/+esm';
+let [KJUR, X509, ASN1HEX, KEYUTIL, RSAKey, b64utohex, hextob64u, pemtohex, hextopem, hextob64, zulutodate, timetogen] = [jsrsasign.KJUR, jsrsasign.X509, jsrsasign.ASN1HEX, jsrsasign.KEYUTIL, jsrsasign.RSAKey, jsrsasign.b64utohex, jsrsasign.hextob64u, jsrsasign.pemtohex, jsrsasign.hextopem, jsrsasign.hextob64, jsrsasign.zulutodate, jsrsasign.timetogen];
+import qcAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-qc@0.9.4/+esm';
+qcAddon.register(jsrsasign);
+import leiAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-leioor@0.9.1/+esm';
+leiAddon.register(jsrsasign);
+
+
 let b64uCert = null;
 let pCert = null;
 let timeType = 0;
@@ -185,7 +192,10 @@ let SUPPORTED_EXTENSIONS = [
     "issuerAltName",
     "subjectAltName",
     "authorityInfoAccess",
-    "cRLDistributionPoints"
+    "cRLDistributionPoints",
+    "qcStatements",
+    "LEI",
+    "Role"
 ];
 
 function _getExtInfo(pCert) {
@@ -196,9 +206,20 @@ function _getExtInfo(pCert) {
 	 try {
 	     let pResult = _getResultItem(aExt, extname);
 	     if (pResult != null) aResult.push(pResult);
-	 } catch(exZ) {};
-     });
-     
+	 } catch(exZ) { alert(exZ) };
+    });
+
+    aExt.map((pExt, index) => {
+	if (SUPPORTED_EXTENSIONS.includes(pExt.extname)) return;
+	let pResult = { 
+	    name: pExt.extname,
+	    idx: index,
+	    critical: pExt.critical,
+	    value: "表示未対応"
+	};
+	aResult.push(pResult);
+    });
+
     return aResult;
 }
 
@@ -317,7 +338,7 @@ function _getResultItem(aExt, extname) {
 
     if (name == "certificatePolicies") {
 	name = "証明書ポリシー";
-	aValue = [];
+	let aValue = [];
 	pExt.array.map((elem, polidx) => {
 	    aValue.push(`[${polidx}] ${elem.policyoid}`);
 	    let aPQ = (elem.array != undefined) ? elem.array : [];
@@ -327,16 +348,55 @@ function _getResultItem(aExt, extname) {
 		    try {
 			let pExpText = pPQ.unotice.exptext;
 			aValue.push(`　　ユーザー通知: ${_h(pExpText.str)}`);
-		    } catch(ex) {alert(ex);};
+		    } catch(ex) {};
 		}
 	    });
 	});
 	value = aValue.join("<br>");
     }
 
+    if (name == "qcStatements") {
+	name = "QCステートメント";
+	let aValue = [];
+	pExt.array.map((pQS, qsidx) => {
+	    if (pQS.id != undefined) {
+		if (pQS.type != undefined) {
+		    aValue.push(`[${qsidx}] ${pQS.id}=${pQS.type}`);
+		} else {
+		    aValue.push(`[${qsidx}] ${pQS.id}`);
+		}
+	    }
+	});
+	value = _qcValueJP(aValue.join("<br>"));
+    }
+
+    if (name == "LEI") {
+	name = "取引主体識別子LEI";
+	value = pExt.value;
+    }
+
+    if (name == "Role") {
+	name = "公式組織役割OOR";
+	value = pExt.value;
+    }
+
     let pResult = { name: name, idx: idx, critical: criticalFlag };
     if (value != null) pResult.value = value;
     return pResult;
+}
+
+function _qcValueJP(s) {
+    let TOKEN = {
+	"etsiQcsCompliance":			"EU適格証明書準拠(0.4.0.1862.1.1)",
+	"etsiQcsQcSSCD":			"EU適格署名生成デバイス(0.4.0.1862.1.4)",
+	"etsiQcsQcType=etsiQcsQctEsign":	"QCタイプ: 電子署名(0.4.0.1862.1.6.1)",
+	"etsiQcsQcType=etsiQcsQctEseal":	"QCタイプ: eシール(0.4.0.1862.1.6.2)",
+	"etsiQcsQcType=etsiQcsQctWeb":		"QCタイプ: ウェブサイト(0.4.0.1862.1.6.3)"
+    };
+    Object.keys(TOKEN).map(id => {
+	s = s.replace(id, TOKEN[id]);
+    });
+    return s;
 }
 
 function _h(s) {
@@ -442,17 +502,19 @@ function _copyCertPEM() {
     if (b64uCert == null || b64uCert == '') return;
     let pemCert = hextopem(b64utohex(b64uCert), "CERTIFICATE");
     navigator.clipboard.writeText(pemCert).then(() => {
+	alert("証明書をPEM形式でクリップボードにコピーしました");
     }, () => {
-	alert("copy failed");
+	alert("コピーに失敗しました");
     });
 }
 
-function _copyCertJSON() {
+export function _copyCertJSON() {
     if (b64uCert == null || b64uCert == '') return;
     let sJSON = JSON.stringify(pCert, null, 2);
     navigator.clipboard.writeText(sJSON).then(() => {
+	alert("証明書をJSON形式でクリップボードにコピーしました");
     }, () => {
-	alert("copy failed");
+	alert("コピーに失敗しました");
     });
 }
 
@@ -466,7 +528,7 @@ function _openPeculiar() {
     window.open(`https://understandingwebpki.com/?cert=${value}`, "_blank");
 }
 
-function _openASN1() {
+function _openLapo() {
     if (b64uCert == null) return;
     window.open(`https://lapo.it/asn1js/#${b64uCert}`, "_blank");
 }
@@ -474,6 +536,11 @@ function _openASN1() {
 _elm("btn1").onclick = function() {_setTextAreaCert();};
 _elm("btnReset").onclick = function() {_reset();};
 _elm("chtime1").onclick = function() { _setValidity(); };
+_elm("btnCopyPEM").onclick = function() { _copyCertPEM(); };
+_elm("btnCopyJSON").onclick = function() { _copyCertJSON(); };
+_elm("btnOpenPeculiar").onclick = function() { _openPeculiar(); };
+_elm("btnOpenLapo").onclick = function() { _openLapo(); };
+
 _elm("btnCopyPubPEM").onclick = function() {
     let pubpem = pCert.sbjpubkey;
     //alert(pubpem);
@@ -494,7 +561,7 @@ if (window.location.hash != '') {
 	    let xCert = new X509(pemCert);
 	    pCert = xCert.getParam();
 	    _setCert();
-	} catch(ex) {};
+	} catch(ex) { alert(ex) };
     } else if (KJUR.lang.String.isBase64(hashValue)) {
 	try {
 	    let b64Cert = hashValue;
