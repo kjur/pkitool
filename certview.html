@@ -78,7 +78,8 @@ import qcAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-qc@0.9.4/+esm'
 qcAddon.register(jsrsasign);
 import leiAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-leioor@0.9.1/+esm';
 leiAddon.register(jsrsasign);
-
+import jpcorpregAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-jpcorpreg@0.9.1/+esm';
+jpcorpregAddon.register(jsrsasign);
 
 let b64uCert = null;
 let pCert = null;
@@ -195,7 +196,10 @@ let SUPPORTED_EXTENSIONS = [
     "cRLDistributionPoints",
     "qcStatements",
     "LEI",
-    "Role"
+    "Role",
+    "registeredCorporationInfoJP",
+    "registrarJP",
+    "certificatePoliciesJP"
 ];
 
 function _getExtInfo(pCert) {
@@ -222,6 +226,15 @@ function _getExtInfo(pCert) {
 
     return aResult;
 }
+
+const CORPINFO_JKEY = {
+    "corporateName": "商号",
+    "registeredNumber": "会社法人等番号",
+    "corporateAddress": "本店",
+    "directorName": "氏名",
+    "directorTitle": "資格",
+    "registryOffice": "管轄登記所"
+};
 
 function _getResultItem(aExt, extname) {
     let idx = aExt.findIndex((pExt) => pExt.extname == extname);
@@ -349,6 +362,11 @@ function _getResultItem(aExt, extname) {
 			let pExpText = pPQ.unotice.exptext;
 			aValue.push(`　　ユーザー通知: ${_h(pExpText.str)}`);
 		    } catch(ex) {};
+		    try {
+			let sOrg = pPQ.unotice.noticeref.org.str;
+			let num = pPQ.unotice.noticeref.noticenum[0].hex;
+			aValue.push(`　　ユーザー通知参照情報: 組織:${sOrg} 番号:${num}`);
+		    } catch(ex) {};
 		}
 	    });
 	});
@@ -378,6 +396,49 @@ function _getResultItem(aExt, extname) {
     if (name == "Role") {
 	name = "公式組織役割OOR";
 	value = pExt.value;
+    }
+
+    if (name == "registrarJP") {
+	name = "電子認証登記官名";
+	value = pExt.value;
+    }
+
+    if (name == "registeredCorporationInfoJP") {
+	name = "会社代表者情報";
+	let pValue = pExt.value;
+	let aValue = [];
+	let keys = ["corporateName", "registeredNumber",
+		    "corporateAddress", "directorName",
+		    "directorTitle", "registryOffice"];
+	keys.map((key) => {
+	    let jkey = CORPINFO_JKEY[key];
+	    aValue.push(`${jkey}: ${pExt.value[key]}`);
+	});
+	value = aValue.join("<br/>");
+    }
+
+    if (name == "certificatePoliciesJP") {
+	name = "証明書ポリシー(日本語)";
+	let aValue = [];
+	pExt.array.map((elem, polidx) => {
+	    aValue.push(`[${polidx}] ${elem.policyoid}`);
+	    let aPQ = (elem.array != undefined) ? elem.array : [];
+	    aPQ.map((pPQ) => {
+		if (pPQ.cps != undefined) aValue.push(`　　CPS: ${_h(pPQ.cps)}`);
+		if (pPQ.unotice != undefined) {
+		    try {
+			let pExpText = pPQ.unotice.exptext;
+			aValue.push(`　　ユーザー通知(テキスト): ${_h(pExpText.str)}`);
+		    } catch(ex) {};
+		    try {
+			let sOrg = pPQ.unotice.noticeref.org.str;
+			let num = pPQ.unotice.noticeref.noticenum[0].hex;
+			aValue.push(`　　ユーザー通知参照情報: 組織:${sOrg} 番号:${num}`);
+		    } catch(ex) {};
+		}
+	    });
+	});
+	value = aValue.join("<br>");
     }
 
     let pResult = { name: name, idx: idx, critical: criticalFlag };
