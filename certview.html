@@ -72,7 +72,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 <script type="module">
-import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.7.0/+esm';
+import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.8.1/+esm';
 let [KJUR, X509, ASN1HEX, KEYUTIL, RSAKey, b64utohex, hextob64u, pemtohex, hextopem, hextob64, zulutodate, timetogen] = [jsrsasign.KJUR, jsrsasign.X509, jsrsasign.ASN1HEX, jsrsasign.KEYUTIL, jsrsasign.RSAKey, jsrsasign.b64utohex, jsrsasign.hextob64u, jsrsasign.pemtohex, jsrsasign.hextopem, jsrsasign.hextob64, jsrsasign.zulutodate, jsrsasign.timetogen];
 import qcAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-qc@0.9.4/+esm';
 qcAddon.register(jsrsasign);
@@ -80,10 +80,49 @@ import leiAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-leioor@0.9.1/
 leiAddon.register(jsrsasign);
 import jpcorpregAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-jpcorpreg@0.9.1/+esm';
 jpcorpregAddon.register(jsrsasign);
+import ctAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-ct@0.9.1/+esm';
+ctAddon.register(jsrsasign);
 
 let b64uCert = null;
 let pCert = null;
 let timeType = 0;
+let CTLOGNAMELIST = {};
+
+let _setCTLogNameListAndLocation = async() => {
+    if (Object.keys(CTLOGNAMELIST).length > 0) return;
+    let promise1 = await fetch('https://www.gstatic.com/ct/log_list/v3/log_list.json');
+    let loglist = await promise1.json();
+    loglist.operators.map((pOp) => {
+	pOp.logs.map((pLog) => {
+	    CTLOGNAMELIST[pLog.log_id] = pLog.description;
+	});
+    });
+
+    if (window.location.hash != '') {
+	let hashValue = window.location.hash.slice(1);
+	if (KJUR.lang.String.isBase64URL(hashValue)) {
+	    try {
+		b64uCert = hashValue;
+		let pemCert = jsrsasign.hextopem(jsrsasign.b64utohex(b64uCert), "CERTIFICATE");
+		_elm("certdata1").value = pemCert;
+		let xCert = new X509(pemCert);
+		pCert = xCert.getParam();
+		_setCert();
+	    } catch(ex) { alert(ex) };
+	} else if (KJUR.lang.String.isBase64(hashValue)) {
+	    try {
+		let b64Cert = hashValue;
+		let hexCert = jsrsasign.b64tohex(b64Cert);
+		b64uCert = jsrsasign.hextob64u(hexCert);
+		let pemCert = hextopem(hexCert, "CERTIFICATE");
+		_elm("certdata1").value = pemCert;
+		let xCert = new X509(pemCert);
+		pCert = xCert.getParam();
+		_setCert();
+	    } catch(ex) {};
+	}
+    }
+}
 
 function _utctogen(s) {
     if (s.match(/^[0-9]{12}Z$/) || s.match(/^[0-9]{12}[.][0-9]*Z$/)) {
@@ -199,7 +238,8 @@ let SUPPORTED_EXTENSIONS = [
     "Role",
     "registeredCorporationInfoJP",
     "registrarJP",
-    "certificatePoliciesJP"
+    "certificatePoliciesJP",
+    "id-ce-embeddedSCT-CTv1"
 ];
 
 function _getExtInfo(pCert) {
@@ -441,6 +481,22 @@ function _getResultItem(aExt, extname) {
 	value = aValue.join("<br>");
     }
 
+    if (name == "id-ce-embeddedSCT-CTv1") {
+	//_setCTLogNameList();
+	name = "CT組込みタイムスタンプ";
+	let aValue = [];
+	pExt.array.map((elem, idx) => {
+	    let logid = (CTLOGNAMELIST[elem.logid] != undefined) ? `${CTLOGNAMELIST[elem.logid]} (${elem.logid})` : elem.logid;
+	    aValue.push(`[${idx + 1}]`);
+	    aValue.push(`ログID: ${_h(logid)}`);
+	    aValue.push(`署名時刻: ${_h(_zulutojstr(elem.timestamp))}`);
+	    aValue.push(`署名アルゴリズム: ${_h(elem.sigalg)}`);
+	    aValue.push(`署名値: ${_h(jsrsasign.hextob64(elem.sighex))}`);
+	});
+	//value = _h(JSON.stringify(pExt));
+	value = aValue.join("<br>");
+    }
+
     let pResult = { name: name, idx: idx, critical: criticalFlag };
     if (value != null) pResult.value = value;
     return pResult;
@@ -530,6 +586,10 @@ function _reset() {
 
 }
 
+function _zulutojstr(s) {
+    return s.replace(/^(....)(..)(..)(..)(..)(.+)Z$/, "$1年$2月$3日 $4:$5:$6 UTC");
+}
+
 function _setValidity() {
     if (pCert == null) return;
     let notbefore = _utctogen(pCert.notbefore);
@@ -611,31 +671,6 @@ _elm("btnCopyPubPEM").onclick = function() {
     });
 };
 
-
-if (window.location.hash != '') {
-    let hashValue = window.location.hash.slice(1);
-    if (KJUR.lang.String.isBase64URL(hashValue)) {
-	try {
-	    b64uCert = hashValue;
-	    let pemCert = hextopem(b64utohex(b64uCert), "CERTIFICATE");
-	    _elm("certdata1").value = pemCert;
-	    let xCert = new X509(pemCert);
-	    pCert = xCert.getParam();
-	    _setCert();
-	} catch(ex) { alert(ex) };
-    } else if (KJUR.lang.String.isBase64(hashValue)) {
-	try {
-	    let b64Cert = hashValue;
-	    let hexCert = b64tohex(b64Cert);
-	    b64uCert = hextob64u(hexCert);
-	    let pemCert = hextopem(hexCert, "CERTIFICATE");
-	    _elm("certdata1").value = pemCert;
-	    let xCert = new X509(pemCert);
-	    pCert = xCert.getParam();
-	    _setCert();
-	} catch(ex) {};
-    }
-}
 // --- ファイル入力
 let fileReader = new FileReader();
 _elm("inputfile1").onchange = () => {
@@ -652,10 +687,11 @@ fileReader.onload = () => {
 	    _setCert();
 	    window.location.hash = "#" + b64uCert;
 	    _elm("certdata1").value = fileData;
+	    _setCert();
 	} catch(ex) { console.log(ex); };
     } else {
 	try {
-	    let hexCert = rstrtohex(fileData);
+	    let hexCert = jsrsasign.rstrtohex(fileData);
 	    let pemCert = hextopem(hexCert, "CERTIFICATE");
 	    let xCert = new X509(pemCert);
 	    pCert = xCert.getParam();
@@ -663,10 +699,14 @@ fileReader.onload = () => {
 	    _setCert();
 	    window.location.hash = "#" + b64uCert;
 	    _elm("certdata1").value = pemCert;
+	    _setCert();
 	} catch(ex) { console.log(ex); };
     }
 };
 
+window.onload = function() {
+    _setCTLogNameListAndLocation();
+}
 </script>
 <div align="center">&copy; 2023 Kenji Urushima All Rights Reserved</div>
 </body>
