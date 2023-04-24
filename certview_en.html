@@ -489,7 +489,7 @@ function _getResultItem(aExt, extname) {
 	    let logid = (CTLOGNAMELIST[elem.logid] != undefined) ? `${CTLOGNAMELIST[elem.logid]} (${elem.logid})` : elem.logid;
 	    aValue.push(`[${idx + 1}]`);
 	    aValue.push(`Log ID: ${_h(logid)}`);
-	    aValue.push(`Time: ${_h(_zulutojstr(elem.timestamp))}`);
+	    aValue.push(`Time: ${_h(_zulutoestr(elem.timestamp))}`);
 	    aValue.push(`Algorithm: ${_h(elem.sigalg)}`);
 	    aValue.push(`Signature: ${_h(jsrsasign.hextob64(elem.sighex))}`);
 	});
@@ -601,6 +601,10 @@ function _reset() {
 
 function _zulutojstr(s) {
     return s.replace(/^(....)(..)(..)(..)(..)(.+)Z$/, "$1年$2月$3日 $4:$5:$6 UTC");
+}
+
+function _zulutoestr(s) {
+    return s.replace(/^(....)(..)(..)(..)(..)(.+)Z$/, "$1-$2-$3 $4:$5:$6 UTC");
 }
 
 function _str2oidname(oidName) {
