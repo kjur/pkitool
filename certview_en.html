@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+<title>certview</title>
+</head>
+<body>
+<main>
+
+<nav class="navbar navbar-expand navbar-dark bg-dark" aria-label="Second navbar example">
+  <div class="container-fluid">
+        <ul class="navbar-nav me-auto mb-2">
+          <li class="nav-item">
+            <a class="nav-link" href=""><i class="bi-card-checklist"></i> <span>Certificate Viewer(alpha1)</span></a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">：</a>
+            <ul class="dropdown-menu" aria-labelledby="dropdown01">
+              <li><a class="dropdown-item" href="certview_help.html" target="_blank">Help, Note (in Japanese)</a></li>
+            </ul>
+          </li>
+        </ul>
+  </div>
+</nav>
+
+<div class="p-2">
+<form>
+<div class="mb-2">
+<label for="cert1" class="form-label">Certificate</label>
+<textarea class="form-control" id="certdata1" rows="3"></textarea>
+</div>
+<button id="btn1" type="submit" class="btn btn-primary">View</button>
+<button id="btnReset" type="submit" class="btn">Reset</button><br/>
+<input class="form-control form-control-sm m-2" id="inputfile1" type="file">
+<button id="btnCopyPEM" type="submit" class="btn btn-dark">Copy PEM</button>
+<button id="btnCopyJSON" type="submit" class="btn btn-dark">Copy JSON</button>
+<button id="btnOpenPeculiar" type="submit" class="btn btn-dark">View Peculiar</button>
+<button id="btnOpenLapo" type="submit" class="btn btn-dark">View lapo ASN.1</button>
+</form>
+</div>
+<div class="p-2">
+<table class="table table-striped table-hover table-sm">
+<thead>
+<tr class="table-dark"><th colspan="2">Basic Fields + Signature Value</th></tr>
+<tr><th class="white-space: nowrap;">Field</th><th>Value</th></tr>
+</thead>
+<tbody>
+<tr><td>Serial</td><td id="serial1"></td></tr>
+<tr><td>Issuer</td><td id="issuer1"></td></tr>
+<tr><td>Validity<i id="chtime1" class="bi-arrow-clockwise"></i></td><td id="validity1"></td></tr>
+<tr><td>Subject</td><td id="subject1"></td></tr>
+<tr><td class="text-nowrap">Public Key <i id="btnCopyPubPEM" class="bi-clipboard-plus"></i></td><td><span id="pubkey1" class="d-inline-block text-truncate" style="max-width: 500px"></span></td></tr>
+<tr><td>Signature <i id="btnCopySigHex" class="bi-clipboard-plus"></i></td><td><span id="sig1" class="d-inline-block text-truncate" style="max-width: 500px"></span></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="p-2">
+<table id="tableext1" class="table table-striped table-hover table-sm">
+<thead>
+<tr class="table-dark"><th colspan="3">Extensions</th></tr>
+<tr class="vertical-align: middle;"><th class="text-nowrap">Critical</th><th class="white-space: nowrap;">Extension</th><th>Value</th></tr>
+</thead>
+<tbody id="tableext1body">
+</tbody>
+</table>
+</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<script type="module">
+import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.8.3/+esm';
+let [KJUR, X509, ASN1HEX, KEYUTIL, RSAKey, b64utohex, hextob64u, pemtohex, hextopem, hextob64, zulutodate, timetogen] = [jsrsasign.KJUR, jsrsasign.X509, jsrsasign.ASN1HEX, jsrsasign.KEYUTIL, jsrsasign.RSAKey, jsrsasign.b64utohex, jsrsasign.hextob64u, jsrsasign.pemtohex, jsrsasign.hextopem, jsrsasign.hextob64, jsrsasign.zulutodate, jsrsasign.timetogen];
+import qcAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-qc@0.9.4/+esm';
+qcAddon.register(jsrsasign);
+import leiAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-leioor@0.9.1/+esm';
+leiAddon.register(jsrsasign);
+import jpcorpregAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-jpcorpreg@0.9.2/+esm';
+jpcorpregAddon.register(jsrsasign);
+import ctAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-ct@0.9.1/+esm';
+ctAddon.register(jsrsasign);
+
+let b64uCert = null;
+let pCert = null;
+let timeType = 0;
+let CTLOGNAMELIST = {};
+
+let _setCTLogNameListAndLocation = async() => {
+    if (Object.keys(CTLOGNAMELIST).length > 0) return;
+    let promise1 = await fetch('https://www.gstatic.com/ct/log_list/v3/log_list.json');
+    let loglist = await promise1.json();
+    loglist.operators.map((pOp) => {
+	pOp.logs.map((pLog) => {
+	    CTLOGNAMELIST[pLog.log_id] = pLog.description;
+	});
+    });
+
+    if (window.location.hash != '') {
+	let hashValue = window.location.hash.slice(1);
+	if (KJUR.lang.String.isBase64URL(hashValue)) {
+	    try {
+		b64uCert = hashValue;
+		let pemCert = jsrsasign.hextopem(jsrsasign.b64utohex(b64uCert), "CERTIFICATE");
+		_elm("certdata1").value = pemCert;
+		let xCert = new X509(pemCert);
+		pCert = xCert.getParam();
+		_setCert();
+	    } catch(ex) { alert(ex) };
+	} else if (KJUR.lang.String.isBase64(hashValue)) {
+	    try {
+		let b64Cert = hashValue;
+		let hexCert = jsrsasign.b64tohex(b64Cert);
+		b64uCert = jsrsasign.hextob64u(hexCert);
+		let pemCert = hextopem(hexCert, "CERTIFICATE");
+		_elm("certdata1").value = pemCert;
+		let xCert = new X509(pemCert);
+		pCert = xCert.getParam();
+		_setCert();
+	    } catch(ex) {};
+	}
+    }
+}
+
+function _utctogen(s) {
+    if (s.match(/^[0-9]{12}Z$/) || s.match(/^[0-9]{12}[.][0-9]*Z$/)) {
+	if (s.match(/^[0-4]/)) {
+	    return "20" + s;
+	} else {
+	    return "19" + s;
+	}
+    }
+    return s;
+}
+
+function _setCert() {
+    timeType = 0;
+    _removeAllExtensions();
+    _setBasicField(pCert);
+    _setExtensions(pCert);
+}
+
+function _setTextAreaCert() {
+    let certdata = document.getElementById("certdata1").value;
+    if (certdata.match(/-----BEGIN CERTIFICATE/)) {
+	let certb64u = hextob64u(pemtohex(certdata))
+	window.location.hash = "#" + certb64u;
+	let x = new X509(certdata);
+	pCert = x.getParam();
+	_setCert();
+    } else if (certdata.match(/^\s*([a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.)+[a-zA-Z]{2,}\s*$/)) {
+	certdata = certdata.replace(/^\s+/, '');
+	certdata = certdata.replace(/\s+$/, '');
+	let domain = certdata;
+	let url = `https://api.certspotter.com/v1/issuances?domain=${domain}&expand=cert_der`;
+	fetch(url)
+	    .then((response) => response.json())
+	    .then((data) => {
+		if (data.length > 0) {
+		    try {
+			let b64Cert = data.slice(-1)[0].cert_der;
+			let hexCert = b64tohex(b64Cert);
+			b64uCert = hextob64u(hexCert);
+			let pemCert = hextopem(hexCert, "CERTIFICATE");
+			let xCert = new X509(pemCert);
+			pCert = xCert.getParam();
+			_setCert();
+		    } catch(ex) {alert(ex)};
+		}
+	    });
+    }
+}
+
+function _elm(id) {
+    return document.getElementById(id);
+}
+
+function _setBasicField(pCert) {
+    try {
+	_elm("serial1").innerText = pCert.serial.hex;
+	_elm("issuer1").innerText = KJUR.asn1.x509.X500Name.compatToLDAP(pCert.issuer.str);
+	_elm("subject1").innerText = KJUR.asn1.x509.X500Name.compatToLDAP(pCert.subject.str);
+	_elm("pubkey1").innerText = _getPublicKeyInfoStr();
+	_elm("sig1").innerText = _getSig();
+	_setValidity();
+	
+    } catch(ex) { alert(ex); };
+}
+
+function _pemtob64(s) {
+    s = s.replace(/^\s*-----.+-----/, '');
+    s = s.replace(/-----.+-----\s*$/, '');
+    s = s.replace(/\s+/g, '');
+    return s;
+}
+
+function _getPublicKeyInfoStr() {
+    try {
+	let value = "";
+	let pub = KEYUTIL.getKey(pCert.sbjpubkey);
+	if (pub instanceof RSAKey) {
+	    return `RSA ${pub.n.bitLength()}bit ${_pemtob64(pCert.sbjpubkey)}`;
+	} else if (pub instanceof KJUR.crypto.ECDSA) {
+	    return `EC ${pub.curveName} ${_pemtob64(pCert.sbjpubkey)}`;
+	} else if (pub instanceof KJUR.crypto.DSA) {
+	    return `DSA`;
+	} else {
+	    return "not supported";
+	}
+    } catch(ex) {
+	return '';
+    }
+}
+
+function _getSig() {
+    try {
+	return `${pCert.sigalg} ${pCert.sighex}`;
+    } catch(ex) {
+	return '';
+    }
+}
+
+let SUPPORTED_EXTENSIONS = [
+    "basicConstraints",
+    "keyUsage",
+    "authorityKeyIdentifier",
+    "subjectKeyIdentifier",
+    "certificatePolicies",
+    "extKeyUsage",
+    "issuerAltName",
+    "subjectAltName",
+    "authorityInfoAccess",
+    "cRLDistributionPoints",
+    "qcStatements",
+    "LEI",
+    "Role",
+    "registeredCorporationInfoJP",
+    "registrarJP",
+    "certificatePoliciesJP",
+    "id-ce-embeddedSCT-CTv1"
+];
+
+function _getExtInfo(pCert) {
+    let aExt = pCert.ext;
+    let aResult = [];
+
+    SUPPORTED_EXTENSIONS.map((extname) => {
+	 try {
+	     let pResult = _getResultItem(aExt, extname);
+	     if (pResult != null) aResult.push(pResult);
+	 } catch(exZ) { alert(exZ) };
+    });
+
+    aExt.map((pExt, index) => {
+	if (SUPPORTED_EXTENSIONS.includes(pExt.extname)) return;
+	let pResult = { 
+	    name: pExt.extname,
+	    idx: index,
+	    critical: pExt.critical,
+	    value: "view not supported"
+	};
+	aResult.push(pResult);
+    });
+
+    return aResult;
+}
+
+const CORPINFO_JKEY = {
+    "corporateName": "Corporate Name",
+    "registeredNumber": "Trade Registration Number",
+    "corporateAddress": "HQ address",
+    "directorName": "Director Name",
+    "directorTitle": "Title",
+    "registryOffice": "Registry office"
+};
+
+function _getResultItem(aExt, extname) {
+    let idx = aExt.findIndex((pExt) => pExt.extname == extname);
+    if (idx == -1) return null;
+    let pExt = aExt[idx];
+    let name = extname;
+    let criticalFlag = (pExt.critical == true) ? true : false;
+    let value = null;
+
+    if (name == "basicConstraints") {
+	name = "Basic Constraints";
+	value = (pExt.cA == true) ? "CA flag=TRUE" : "CA flag=FALSE";
+	if (pExt.pathLen != undefined) value += ` pathLen constraints=${pExt.pathLen}`;
+    }
+
+    if (name == "keyUsage") {
+	name = "Key Usage";
+	try { value = pExt.names.join(", "); } catch(ex) {};
+    }
+    
+    if (name == "authorityKeyIdentifier") {
+	name = "Authority Key Identifier";
+	try {value = _h(pExt.kid.hex);} catch(ex) {};
+    }
+
+    if (name == "subjectKeyIdentifier") {
+	name = "Subject Key Identifier";
+	try {value = _h(pExt.kid.hex);} catch(ex) {};
+    }
+
+    if (name == "extKeyUsage") {
+	name = "Extended Key Usage";
+	try {value = pExt.array.map((elem) => _h(_str2oidname(elem))).join("<br>");} catch(ex) {}; 
+    }
+
+    if (name == "issuerAltName") {
+	name = "Issuer Alt Name";
+	if (pExt.array != undefined) {
+	    let aValue = pExt.array.map((elem) => {
+		if (elem.dns != undefined) {
+		    return elem.dns;
+		} else if (elem.dn != undefined) {
+		    return _x500NameParamToStr(elem.dn);
+		} else if (elem.rfc822 != undefined) {
+		    return elem.rfc822;
+		} else if (elem.ip != undefined) {
+		    return elem.ip;
+		} else if (elem.other != undefined) {
+		    return _otherNameToStr(elem.other);
+		} else {
+		    return null;
+		}
+	    });
+	    aValue = aValue.filter((elem) => elem != null);
+	    aValue = aValue.map((elem) => _h(elem));
+	    value = aValue.join("<br>");
+	}
+    }
+
+    if (name == "subjectAltName") {
+	name = "Subject Alt Name";
+	if (pExt.array != undefined) {
+	    let aValue = pExt.array.map((elem) => {
+		if (elem.dns != undefined) {
+		    return `DNS: ${elem.dns}`;
+		} else if (elem.dn != undefined) {
+		    return `DN: ${_x500NameParamToStr(elem.dn)}`;
+		} else if (elem.rfc822 != undefined) {
+		    return `Mail: ${elem.rfc822}`;
+		} else if (elem.ip != undefined) {
+		    return `IP: ${elem.ip}`;
+		} else if (elem.other != undefined) {
+		    return _otherNameToStr(elem.other);
+		} else {
+		    return null;
+		}
+	    });
+	    aValue = aValue.filter((elem) => elem != null);
+	    aValue = aValue.map((elem) => _h(elem));
+	    value = aValue.join("<br>");
+	}
+    }
+    
+    if (name == "authorityInfoAccess") {
+	name = "Authority Info Access";
+	let aValue = [];
+	pExt.array.map((elem) => {
+	    if (elem.caissuer != undefined) aValue.push(`caIssuer: ${_h(elem.caissuer)}`);
+	    if (elem.ocsp != undefined) aValue.push(`OCSP: ${_h(elem.ocsp)}`);
+	});
+	if (aValue.length > 0) value = aValue.join("<br/>\n");
+    }
+
+    if (name == "cRLDistributionPoints") {
+	name = "CRL Distribution Points";
+	if (pExt.array != undefined) {
+	    let aValue = pExt.array.map((dp) => {
+		try {
+		    if (dp.dpname.full[0].uri != undefined) {
+			return _h(dp.dpname.full[0].uri);
+		    }
+		} catch(ex) {}
+		try {
+		    if (dp.dpname.full[0].dn.str != undefined) {
+			return _h(dp.dpname.full[0].dn.str);
+		    }
+		} catch(ex) {}
+		return null;
+	    });
+	    aValue = aValue.filter((elem) => elem != null);
+	    value = aValue.join("<br>");
+	}
+    }
+
+    if (name == "certificatePolicies") {
+	name = "Certificate Policies";
+	let aValue = [];
+	pExt.array.map((elem, polidx) => {
+	    aValue.push(`[${polidx}] ${_str2oidname(elem.policyoid)}`);
+	    let aPQ = (elem.array != undefined) ? elem.array : [];
+	    aPQ.map((pPQ) => {
+		if (pPQ.cps != undefined) aValue.push(`　　CPS: ${_h(pPQ.cps)}`);
+		if (pPQ.unotice != undefined) {
+		    try {
+			let pExpText = pPQ.unotice.exptext;
+			aValue.push(`　　User Notice: ${_h(pExpText.str)}`);
+		    } catch(ex) {};
+		    try {
+			let sOrg = pPQ.unotice.noticeref.org.str;
+			let num = pPQ.unotice.noticeref.noticenum.join(",");
+			aValue.push(`　　Notice Ref: Org:${sOrg} Num:${num}`);
+		    } catch(ex) {};
+		}
+	    });
+	});
+	value = aValue.join("<br>");
+    }
+
+    if (name == "qcStatements") {
+	name = "QC Statements";
+	let aValue = [];
+	pExt.array.map((pQS, qsidx) => {
+	    if (pQS.id != undefined) {
+		if (pQS.type != undefined) {
+		    aValue.push(`[${qsidx}] ${pQS.id}=${pQS.type}`);
+		} else {
+		    aValue.push(`[${qsidx}] ${pQS.id}`);
+		}
+	    }
+	});
+	value = _qcValueJP(aValue.join("<br>"));
+    }
+
+    if (name == "LEI") {
+	name = "LEI";
+	value = pExt.value;
+    }
+
+    if (name == "Role") {
+	name = "Role";
+	value = pExt.value;
+    }
+
+    if (name == "registrarJP") {
+	name = "電子認証登記官名";
+	value = pExt.value;
+    }
+
+    if (name == "registeredCorporationInfoJP") {
+	name = "会社代表者情報";
+	let pValue = pExt.value;
+	let aValue = [];
+	let keys = ["corporateName", "registeredNumber",
+		    "corporateAddress", "directorName",
+		    "directorTitle", "registryOffice"];
+	keys.map((key) => {
+	    let jkey = CORPINFO_JKEY[key];
+	    aValue.push(`${jkey}: ${pExt.value[key]}`);
+	});
+	value = aValue.join("<br/>");
+    }
+
+    if (name == "certificatePoliciesJP") {
+	name = "Certificate Policies(in Japanese)";
+	let aValue = [];
+	pExt.array.map((elem, polidx) => {
+	    aValue.push(`[${polidx}] ${elem.policyoid}`);
+	    let aPQ = (elem.array != undefined) ? elem.array : [];
+	    aPQ.map((pPQ) => {
+		if (pPQ.cps != undefined) aValue.push(`　　CPS: ${_h(pPQ.cps)}`);
+		if (pPQ.unotice != undefined) {
+		    try {
+			let pExpText = pPQ.unotice.exptext;
+			aValue.push(`　　User Notice(text): ${_h(pExpText.str)}`);
+		    } catch(ex) {};
+		    try {
+			let sOrg = pPQ.unotice.noticeref.org.str;
+			let num = pPQ.unotice.noticeref.noticenum.join(",");
+			aValue.push(`　　Notice Ref: Org:${sOrg} Num:${num}`);
+		    } catch(ex) {};
+		}
+	    });
+	});
+	value = aValue.join("<br>");
+    }
+
+    if (name == "id-ce-embeddedSCT-CTv1") {
+	//_setCTLogNameList();
+	name = "CT Embedded Timestamp";
+	let aValue = [];
+	pExt.array.map((elem, idx) => {
+	    let logid = (CTLOGNAMELIST[elem.logid] != undefined) ? `${CTLOGNAMELIST[elem.logid]} (${elem.logid})` : elem.logid;
+	    aValue.push(`[${idx + 1}]`);
+	    aValue.push(`Log ID: ${_h(logid)}`);
+	    aValue.push(`Time: ${_h(_zulutojstr(elem.timestamp))}`);
+	    aValue.push(`Algorithm: ${_h(elem.sigalg)}`);
+	    aValue.push(`Signature: ${_h(jsrsasign.hextob64(elem.sighex))}`);
+	});
+	//value = _h(JSON.stringify(pExt));
+	value = aValue.join("<br>");
+    }
+
+    let pResult = { name: name, idx: idx, critical: criticalFlag };
+    if (value != null) pResult.value = value;
+    return pResult;
+}
+
+function _qcValueJP(s) {
+    let TOKEN = {
+	"etsiQcsCompliance":			"EU QCS Compliance(0.4.0.1862.1.1)",
+	"etsiQcsQcSSCD":			"EU QSCD(0.4.0.1862.1.4)",
+	"etsiQcsQcType=etsiQcsQctEsign":	"QCType=eSignature(0.4.0.1862.1.6.1)",
+	"etsiQcsQcType=etsiQcsQctEseal":	"QCType=eSeal(0.4.0.1862.1.6.2)",
+	"etsiQcsQcType=etsiQcsQctWeb":		"QCTYpe=WebAuth(0.4.0.1862.1.6.3)"
+    };
+    Object.keys(TOKEN).map(id => {
+	s = s.replace(id, TOKEN[id]);
+    });
+    return s;
+}
+
+function _h(s) {
+    return String(s).replace(/&/g, "&amp;")
+	.replace(/"/g, "&quot;")
+	.replace(/</g, "&lt;")
+	.replace(/>/g, "&gt;");
+}
+
+function _jpkiDateOfBirth(s) {
+    return s.replace(/^.([0-9]{4})([0-9]{2})([0-9]{2})$/, "$1年$2月$3日");
+}
+
+function _x500NameParamToStr(p) {
+    let aRDN = p.array.reverse();
+    aRDN = aRDN.map((aATV) => {
+	let sRDN = aATV.map((pATV) => {
+	    return `${pATV.type}=${pATV.value}`;
+	}).join("+");
+	return sRDN;
+    });
+    return aRDN.join(", ");
+}
+
+function _otherNameToStr(pOther) {
+    let SEX = { 1: "Male", 2: "Female", 3: "Unspecified" };
+    try {
+	let oid = pOther.oid;
+	if (oid == "1.3.6.1.5.5.7.8.9" || oid == "smtpUTF8Mailbox") return `UTF8 Mail: ${pOther.value.utf8str.str}`
+	if (oid == "1.3.6.1.4.1.311.20.2.3") return `UPN: ${pOther.value.utf8str.str}`
+	if (oid == "1.2.392.200149.8.5.5.1") return `Full Name: ${pOther.value.utf8str.str}`;
+	if (oid == "1.2.392.200149.8.5.5.4") return `Date of Birth: ${_jpkiDateOfBirth(pOther.value.utf8str.str)}`;
+	if (oid == "1.2.392.200149.8.5.5.3") return `Sex: ${SEX[pOther.value.utf8str.str]}`;
+	if (oid == "1.2.392.200149.8.5.5.5") return `Address: ${pOther.value.utf8str.str}`;
+	if (oid == "1.2.392.200149.8.5.5.2") return `Name Substitution Character Point: ${pOther.value.utf8str.str}`;
+	if (oid == "1.2.392.200149.8.5.5.6") return `Address Substitution Character Point: ${pOther.value.utf8str.str}`;
+	return null;
+    } catch(ex) {alert(ex);};
+    return null;
+}
+
+function _setExtensions(pCert) {
+    let aExtInfo = _getExtInfo(pCert);
+    let table = _elm("tableext1");
+    for (let i = 0; i < aExtInfo.length; i++) {
+	let pExtInfo = aExtInfo[i];
+	let row = table.insertRow();
+	let cell1 = row.insertCell();
+	cell1.innerHTML = (pExtInfo.critical) ? '<i class="bi-patch-exclamation"></i>' : '';
+	let cell2 = row.insertCell();
+	_setCellText(cell2, pExtInfo.name);
+	let cell3 = row.insertCell();
+	if (pExtInfo.value != undefined) cell3.innerHTML = pExtInfo.value;
+    }
+}
+
+function _removeAllExtensions() {
+    let table = _elm("tableext1");
+    while (table.rows.length > 2) table.deleteRow(-1);
+}
+
+function _setCellText(cell, s) {
+    let newText = document.createTextNode(s);
+    cell.appendChild(newText);
+}
+
+function _getValidityStr(pCert) {
+    return pCert.notbefore + "〜" + pCert.notafter;
+}
+
+function _reset() {
+    window.location.hash = '';
+    _elm("certdata1").value = '';
+    _elm("inputfile1").value = '';
+
+    _elm("serial1").innerText = '';
+    _elm("issuer1").innerText = '';
+    _elm("validity1").innerText = '';
+    _elm("subject1").innerText = '';
+    _elm("pubkey1").innerText = '';
+    _elm("sig1").innerText = '';
+    _removeAllExtensions();
+
+}
+
+function _zulutojstr(s) {
+    return s.replace(/^(....)(..)(..)(..)(..)(.+)Z$/, "$1年$2月$3日 $4:$5:$6 UTC");
+}
+
+function _str2oidname(oidName) {
+    let oid = jsrsasign.KJUR.asn1.x509.OID.name2oid(oidName);
+    return (oid != '') ? `${oidName}(${oid})` : oidName;
+}
+
+function _setValidity() {
+    if (pCert == null) return;
+    let notbefore = _utctogen(pCert.notbefore);
+    let notafter = _utctogen(pCert.notafter);
+    let value = "";
+    if (timeType % 4 == 0) {
+	notbefore = notbefore.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1-$2-$3");
+	notafter = notafter.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1-$2-$3");
+	value = `${notbefore}〜${notafter} UTC`;
+    } else if (timeType % 4 == 1) {
+	notbefore = notbefore.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1-$2-$3 $4:$5:$6");
+	notafter = notafter.replace(/^(....)(..)(..)(..)(..)(..)Z$/, "$1-$2-$3 $4:$5:$6");
+	value = `${notbefore}〜${notafter} UTC`;
+    } else if (timeType % 4 == 2) { // JST表示
+	let pTZ = {timeZone: "Asia/Tokyo"};
+	let re = new RegExp(/^([0-9]{4})\/([0-9]{1,2})\/([0-9]{1,2}) ([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})$/);
+	// toLocaleString(ja-JP)の戻値は "2023/2/23 5:13:9" 形式
+	notbefore = zulutodate(notbefore).toLocaleString("ja-JP", pTZ);
+	notafter = zulutodate(notafter).toLocaleString("ja-JP", pTZ);
+	notbefore = notbefore.replace(re, "$1-$2-$3 $4:$5:$6");
+	notafter = notafter.replace(re, "$1-$2-$3 $4:$5:$6");
+	value = `${notbefore}〜${notafter} JST`;
+    } else {
+	value = `${notbefore}〜${notafter}`;
+    }
+    _elm("validity1").innerText = value;
+    timeType++;
+}
+
+function _copyCertPEM() {
+    if (b64uCert == null || b64uCert == '') return;
+    let pemCert = hextopem(b64utohex(b64uCert), "CERTIFICATE");
+    navigator.clipboard.writeText(pemCert).then(() => {
+	alert("certificate copied in PEM format");
+    }, () => {
+	alert("copy failed");
+    });
+}
+
+export function _copyCertJSON() {
+    if (b64uCert == null || b64uCert == '') return;
+    let sJSON = JSON.stringify(pCert, null, 2);
+    navigator.clipboard.writeText(sJSON).then(() => {
+	alert("certificate copied in JSON format");
+    }, () => {
+	alert("copy failed");
+    });
+}
+
+function _openPeculiar() {
+    if (b64uCert == null) return;
+    let value = hextob64(b64utohex(b64uCert));
+    // encodeURI
+    value = value.replace(/\+/g, "%2B");
+    value = value.replace(/\//g, "%2F");
+    value = value.replace(/=/g, "%3D");
+    window.open(`https://understandingwebpki.com/?cert=${value}`, "_blank");
+}
+
+function _openLapo() {
+    if (b64uCert == null) return;
+    window.open(`https://lapo.it/asn1js/#${b64uCert}`, "_blank");
+}
+
+_elm("btn1").onclick = function() {_setTextAreaCert();};
+_elm("btnReset").onclick = function() {_reset();};
+_elm("chtime1").onclick = function() { _setValidity(); };
+_elm("btnCopyPEM").onclick = function() { _copyCertPEM(); };
+_elm("btnCopyJSON").onclick = function() { _copyCertJSON(); };
+_elm("btnOpenPeculiar").onclick = function() { _openPeculiar(); };
+_elm("btnOpenLapo").onclick = function() { _openLapo(); };
+
+_elm("btnCopyPubPEM").onclick = function() {
+    let pubpem = pCert.sbjpubkey;
+    //alert(pubpem);
+    navigator.clipboard.writeText(pubpem).then(() => {
+    }, () => {
+	alert("copy failed");
+    });
+};
+
+// --- ファイル入力
+let fileReader = new FileReader();
+_elm("inputfile1").onchange = () => {
+    fileReader.readAsBinaryString(_elm("inputfile1").files[0]);
+};
+fileReader.onload = () => {
+    //console.log(fileReader.result);
+    let fileData = fileReader.result;
+    if (fileData.match(/-----BEGIN CERTIFICATE/)) {
+	try {
+	    let xCert = new X509(fileData);
+	    pCert = xCert.getParam();
+	    b64uCert = hextob64u(pemtohex(fileData));
+	    _setCert();
+	    window.location.hash = "#" + b64uCert;
+	    _elm("certdata1").value = fileData;
+	    _setCert();
+	} catch(ex) { console.log(ex); };
+    } else {
+	try {
+	    let hexCert = jsrsasign.rstrtohex(fileData);
+	    let pemCert = hextopem(hexCert, "CERTIFICATE");
+	    let xCert = new X509(pemCert);
+	    pCert = xCert.getParam();
+	    b64uCert = hextob64u(hexCert);
+	    _setCert();
+	    window.location.hash = "#" + b64uCert;
+	    _elm("certdata1").value = pemCert;
+	    _setCert();
+	} catch(ex) { console.log(ex); };
+    }
+};
+
+window.onload = function() {
+    _setCTLogNameListAndLocation();
+}
+</script>
+<div align="center">&copy; 2023 Kenji Urushima All Rights Reserved</div>
+</body>
+</html>
