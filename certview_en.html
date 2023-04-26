@@ -72,7 +72,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 <script type="module">
-import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.8.3/+esm';
+import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.8.6/+esm';
 let [KJUR, X509, ASN1HEX, KEYUTIL, RSAKey, b64utohex, hextob64u, pemtohex, hextopem, hextob64, zulutodate, timetogen] = [jsrsasign.KJUR, jsrsasign.X509, jsrsasign.ASN1HEX, jsrsasign.KEYUTIL, jsrsasign.RSAKey, jsrsasign.b64utohex, jsrsasign.hextob64u, jsrsasign.pemtohex, jsrsasign.hextopem, jsrsasign.hextob64, jsrsasign.zulutodate, jsrsasign.timetogen];
 import qcAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-qc@0.9.4/+esm';
 qcAddon.register(jsrsasign);
@@ -239,7 +239,8 @@ let SUPPORTED_EXTENSIONS = [
     "registeredCorporationInfoJP",
     "registrarJP",
     "certificatePoliciesJP",
-    "id-ce-embeddedSCT-CTv1"
+    "id-ce-embeddedSCT-CTv1",
+    "subjectDirectoryAttributes"
 ];
 
 function _getExtInfo(pCert) {
@@ -494,6 +495,21 @@ function _getResultItem(aExt, extname) {
 	    aValue.push(`Signature: ${_h(jsrsasign.hextob64(elem.sighex))}`);
 	});
 	//value = _h(JSON.stringify(pExt));
+	value = aValue.join("<br>");
+    }
+
+    if (name == "subjectDirectoryAttributes") {
+	name = "Subject Directory Attributes";
+	let aValue = [];
+	let x = new jsrsasign.X509();
+	pExt.array.map((elem) => {
+	    let aAttrValue = elem.array;
+	    let aAttrValueStr = aAttrValue.map((elem2) => {
+		let pDispText = x.asn1ToDisplayText(elem2);
+		return (pDispText != undefined) ? _h(pDispText.str) : _h(JSON.stringify(elem2));
+	    });
+	    aValue.push(`${_h(elem.attr)}: ${aAttrValueStr.join(", ")}`);
+	});
 	value = aValue.join("<br>");
     }
 
