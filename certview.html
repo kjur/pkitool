@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-<title>certview</title>
+<title>jsrsasign certview</title>
 </head>
 <body>
 <main>
@@ -14,7 +14,7 @@
   <div class="container-fluid">
         <ul class="navbar-nav me-auto mb-2">
           <li class="nav-item">
-            <a class="nav-link" href=""><i class="bi-card-checklist"></i> <span>証明書ビューアー(α1版)</span></a>
+            <a class="nav-link" href=""><i class="bi-card-checklist"></i> <span>jsrsasign 証明書ビューアー</span></a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">：</a>
@@ -39,6 +39,7 @@
 <button id="btnCopyJSON" type="submit" class="btn btn-dark">JSONコピー</button>
 <button id="btnOpenPeculiar" type="submit" class="btn btn-dark">Peculiarビューアーで開く</button>
 <button id="btnOpenLapo" type="submit" class="btn btn-dark">lapo ASN.1ビューアーで開く</button>
+<button id="btnOpenEN" type="submit" class="btn btn-dark">View EN</button>
 </form>
 </div>
 <div class="p-2">
@@ -72,7 +73,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 <script type="module">
-import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.8.3/+esm';
+import jsrsasign from 'https://cdn.jsdelivr.net/npm/jsrsasign@10.8.6/+esm';
 let [KJUR, X509, ASN1HEX, KEYUTIL, RSAKey, b64utohex, hextob64u, pemtohex, hextopem, hextob64, zulutodate, timetogen] = [jsrsasign.KJUR, jsrsasign.X509, jsrsasign.ASN1HEX, jsrsasign.KEYUTIL, jsrsasign.RSAKey, jsrsasign.b64utohex, jsrsasign.hextob64u, jsrsasign.pemtohex, jsrsasign.hextopem, jsrsasign.hextob64, jsrsasign.zulutodate, jsrsasign.timetogen];
 import qcAddon from 'https://cdn.jsdelivr.net/npm/jsrsasign-addon-qc@0.9.4/+esm';
 qcAddon.register(jsrsasign);
@@ -161,10 +162,10 @@ function _setTextAreaCert() {
 		if (data.length > 0) {
 		    try {
 			let b64Cert = data.slice(-1)[0].cert_der;
-			let hexCert = b64tohex(b64Cert);
-			b64uCert = hextob64u(hexCert);
-			let pemCert = hextopem(hexCert, "CERTIFICATE");
-			let xCert = new X509(pemCert);
+			let hexCert = jsrsasign.b64tohex(b64Cert);
+			b64uCert = jsrsasign.hextob64u(hexCert);
+			let pemCert = jsrsasign.hextopem(hexCert, "CERTIFICATE");
+			let xCert = new jsrsasign.X509(pemCert);
 			pCert = xCert.getParam();
 			_setCert();
 		    } catch(ex) {alert(ex)};
@@ -239,7 +240,8 @@ let SUPPORTED_EXTENSIONS = [
     "registeredCorporationInfoJP",
     "registrarJP",
     "certificatePoliciesJP",
-    "id-ce-embeddedSCT-CTv1"
+    "id-ce-embeddedSCT-CTv1",
+    "subjectDirectoryAttributes"
 ];
 
 function _getExtInfo(pCert) {
@@ -497,6 +499,21 @@ function _getResultItem(aExt, extname) {
 	value = aValue.join("<br>");
     }
 
+    if (name == "subjectDirectoryAttributes") {
+	name = "主体者ディレクトリ属性";
+	let aValue = [];
+	let x = new jsrsasign.X509();
+	pExt.array.map((elem) => {
+	    let aAttrValue = elem.array;
+	    let aAttrValueStr = aAttrValue.map((elem2) => {
+		let pDispText = x.asn1ToDisplayText(elem2);
+		return (pDispText != undefined) ? _h(pDispText.str) : _h(JSON.stringify(elem2));
+	    });
+	    aValue.push(`${_h(elem.attr)}: ${aAttrValueStr.join(", ")}`);
+	});
+	value = aValue.join("<br>");
+    }
+
     let pResult = { name: name, idx: idx, critical: criticalFlag };
     if (value != null) pResult.value = value;
     return pResult;
@@ -672,6 +689,14 @@ function _openLapo() {
     window.open(`https://lapo.it/asn1js/#${b64uCert}`, "_blank");
 }
 
+function _openEN() {
+    if (b64uCert == null) {
+	window.open(`certview_en.html`, "_blank");
+    } else {
+	window.open(`certview_en.html?#${b64uCert}`, "_blank");
+    }
+}
+
 _elm("btn1").onclick = function() {_setTextAreaCert();};
 _elm("btnReset").onclick = function() {_reset();};
 _elm("chtime1").onclick = function() { _setValidity(); };
@@ -679,6 +704,7 @@ _elm("btnCopyPEM").onclick = function() { _copyCertPEM(); };
 _elm("btnCopyJSON").onclick = function() { _copyCertJSON(); };
 _elm("btnOpenPeculiar").onclick = function() { _openPeculiar(); };
 _elm("btnOpenLapo").onclick = function() { _openLapo(); };
+_elm("btnOpenEN").onclick = function() { _openEN(); };
 
 _elm("btnCopyPubPEM").onclick = function() {
     let pubpem = pCert.sbjpubkey;

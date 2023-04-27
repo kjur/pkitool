@@ -29,12 +29,14 @@
 <div class="p-2">
 <form>
 <div class="mb-2">
-<label for="cert1" class="form-label">Certificate</label>
+<label for="cert1" class="form-label">Certificate or FQDN</label>
 <textarea class="form-control" id="certdata1" rows="3"></textarea>
 </div>
+
 <button id="btn1" type="submit" class="btn btn-primary">View</button>
 <button id="btnReset" type="submit" class="btn">Reset</button><br/>
 <input class="form-control form-control-sm m-2" id="inputfile1" type="file">
+
 <button id="btnCopyPEM" type="submit" class="btn btn-dark">Copy PEM</button>
 <button id="btnCopyJSON" type="submit" class="btn btn-dark">Copy JSON</button>
 <button id="btnOpenPeculiar" type="submit" class="btn btn-dark">View Peculiar</button>
@@ -162,10 +164,11 @@ function _setTextAreaCert() {
 		if (data.length > 0) {
 		    try {
 			let b64Cert = data.slice(-1)[0].cert_der;
-			let hexCert = b64tohex(b64Cert);
-			b64uCert = hextob64u(hexCert);
-			let pemCert = hextopem(hexCert, "CERTIFICATE");
-			let xCert = new X509(pemCert);
+			let hexCert = jsrsasign.b64tohex(b64Cert);
+			b64uCert = jsrsasign.hextob64u(hexCert);
+			let pemCert = jsrsasign.hextopem(hexCert, "CERTIFICATE");
+			_elm("certdata1").value = pemCert;
+			let xCert = new jsrsasign.X509(pemCert);
 			pCert = xCert.getParam();
 			_setCert();
 		    } catch(ex) {alert(ex)};
