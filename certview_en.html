@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-<title>certview</title>
+<title>jsrsasign certview</title>
 </head>
 <body>
 <main>
@@ -14,7 +14,7 @@
   <div class="container-fluid">
         <ul class="navbar-nav me-auto mb-2">
           <li class="nav-item">
-            <a class="nav-link" href=""><i class="bi-card-checklist"></i> <span>Certificate Viewer(alpha1)</span></a>
+            <a class="nav-link" href=""><i class="bi-card-checklist"></i> <span>jsrsasign Certificate Viewer</span></a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">：</a>
@@ -39,6 +39,7 @@
 <button id="btnCopyJSON" type="submit" class="btn btn-dark">Copy JSON</button>
 <button id="btnOpenPeculiar" type="submit" class="btn btn-dark">View Peculiar</button>
 <button id="btnOpenLapo" type="submit" class="btn btn-dark">View lapo ASN.1</button>
+<button id="btnOpenJP" type="submit" class="btn btn-dark">View JP</button>
 </form>
 </div>
 <div class="p-2">
@@ -692,6 +693,14 @@ function _openLapo() {
     window.open(`https://lapo.it/asn1js/#${b64uCert}`, "_blank");
 }
 
+function _openJP() {
+    if (b64uCert == null) {
+	window.open(`certview.html`, "_blank");
+    } else {
+	window.open(`certview.html?#${b64uCert}`, "_blank");
+    }
+}
+
 _elm("btn1").onclick = function() {_setTextAreaCert();};
 _elm("btnReset").onclick = function() {_reset();};
 _elm("chtime1").onclick = function() { _setValidity(); };
@@ -699,6 +708,7 @@ _elm("btnCopyPEM").onclick = function() { _copyCertPEM(); };
 _elm("btnCopyJSON").onclick = function() { _copyCertJSON(); };
 _elm("btnOpenPeculiar").onclick = function() { _openPeculiar(); };
 _elm("btnOpenLapo").onclick = function() { _openLapo(); };
+_elm("btnOpenJP").onclick = function() { _openJP(); };
 
 _elm("btnCopyPubPEM").onclick = function() {
     let pubpem = pCert.sbjpubkey;
