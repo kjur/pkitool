@@ -19,7 +19,7 @@
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">：</a>
             <ul class="dropdown-menu" aria-labelledby="dropdown01">
-              <li><a class="dropdown-item" href="certview_help.html" target="_blank">Help, Note (in Japanese)</a></li>
+              <li><a class="dropdown-item" href="certview_help_en.html" target="_blank">Help</a></li>
             </ul>
           </li>
         </ul>
@@ -41,6 +41,7 @@
 <button id="btnCopyJSON" type="submit" class="btn btn-dark">Copy JSON</button>
 <button id="btnOpenPeculiar" type="submit" class="btn btn-dark">View Peculiar</button>
 <button id="btnOpenLapo" type="submit" class="btn btn-dark">View lapo ASN.1</button>
+<button id="btnOpenKevin" type="submit" class="btn btn-dark">View Kevin's ASN.1</button>
 <button id="btnOpenJP" type="submit" class="btn btn-dark">View JP</button>
 </form>
 </div>
@@ -696,6 +697,11 @@ function _openLapo() {
     window.open(`https://lapo.it/asn1js/#${b64uCert}`, "_blank");
 }
 
+function _openKevin() {
+    if (b64uCert == null) return;
+    window.open(`https://asn.vcsjones.dev/?asn=${jsrsasign.b64utohex(b64uCert)}`, "_blank");
+}
+
 function _openJP() {
     if (b64uCert == null) {
 	window.open(`certview.html`, "_blank");
@@ -711,6 +717,7 @@ _elm("btnCopyPEM").onclick = function() { _copyCertPEM(); };
 _elm("btnCopyJSON").onclick = function() { _copyCertJSON(); };
 _elm("btnOpenPeculiar").onclick = function() { _openPeculiar(); };
 _elm("btnOpenLapo").onclick = function() { _openLapo(); };
+_elm("btnOpenKevin").onclick = function() { _openKevin(); };
 _elm("btnOpenJP").onclick = function() { _openJP(); };
 
 _elm("btnCopyPubPEM").onclick = function() {

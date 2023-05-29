@@ -29,7 +29,7 @@
 <div class="p-2">
 <form>
 <div class="mb-2">
-<label for="cert1" class="form-label">証明書</label>
+<label for="cert1" class="form-label">証明書またはFQDN</label>
 <textarea class="form-control" id="certdata1" rows="3"></textarea>
 </div>
 <button id="btn1" type="submit" class="btn btn-primary">設定</button>
@@ -39,6 +39,7 @@
 <button id="btnCopyJSON" type="submit" class="btn btn-dark">JSONコピー</button>
 <button id="btnOpenPeculiar" type="submit" class="btn btn-dark">Peculiarビューアーで開く</button>
 <button id="btnOpenLapo" type="submit" class="btn btn-dark">lapo ASN.1ビューアーで開く</button>
+<button id="btnOpenKevin" type="submit" class="btn btn-dark">Kevin's ASN.1ビューアーで開く</button>
 <button id="btnOpenEN" type="submit" class="btn btn-dark">View EN</button>
 </form>
 </div>
@@ -689,6 +690,11 @@ function _openLapo() {
     window.open(`https://lapo.it/asn1js/#${b64uCert}`, "_blank");
 }
 
+function _openKevin() {
+    if (b64uCert == null) return;
+    window.open(`https://asn.vcsjones.dev/?asn=${jsrsasign.b64utohex(b64uCert)}`, "_blank");
+}
+
 function _openEN() {
     if (b64uCert == null) {
 	window.open(`certview_en.html`, "_blank");
@@ -704,6 +710,7 @@ _elm("btnCopyPEM").onclick = function() { _copyCertPEM(); };
 _elm("btnCopyJSON").onclick = function() { _copyCertJSON(); };
 _elm("btnOpenPeculiar").onclick = function() { _openPeculiar(); };
 _elm("btnOpenLapo").onclick = function() { _openLapo(); };
+_elm("btnOpenKevin").onclick = function() { _openKevin(); };
 _elm("btnOpenEN").onclick = function() { _openEN(); };
 
 _elm("btnCopyPubPEM").onclick = function() {
